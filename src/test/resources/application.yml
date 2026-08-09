@@ -13,3 +13,8 @@ spring:
         generate_statistics: true
   flyway:
     enabled: true
+
+app:
+  rate-limit:
+    max-requests: 30
+    window: 1m

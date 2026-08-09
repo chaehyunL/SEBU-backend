@@ -6,7 +6,6 @@ CREATE TABLE college (
     CONSTRAINT pk_college PRIMARY KEY (id),
     CONSTRAINT uk_college_name UNIQUE (name)
 );
-
 CREATE TABLE department (
     id BIGINT NOT NULL AUTO_INCREMENT,
     college_id BIGINT NOT NULL,
@@ -18,4 +17,3 @@ CREATE TABLE department (
     CONSTRAINT fk_department_college FOREIGN KEY (college_id)
         REFERENCES college (id) ON DELETE RESTRICT
 );
-

@@ -6,7 +6,6 @@ CREATE TABLE research_field (
     CONSTRAINT pk_research_field PRIMARY KEY (id),
     CONSTRAINT uk_research_field_name UNIQUE (name)
 );
-
 CREATE TABLE laboratory_research_field (
     laboratory_id BIGINT NOT NULL,
     research_field_id BIGINT NOT NULL,
@@ -16,4 +15,3 @@ CREATE TABLE laboratory_research_field (
     CONSTRAINT fk_lrf_research_field FOREIGN KEY (research_field_id)
         REFERENCES research_field (id) ON DELETE RESTRICT
 );
-

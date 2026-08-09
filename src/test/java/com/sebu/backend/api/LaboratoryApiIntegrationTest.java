@@ -1,10 +1,13 @@
 package com.sebu.backend.api;
 
 import com.sebu.backend.auth.CurrentUserProvider;
+import com.sebu.backend.application.laboratory.LaboratoryQueryService;
 import com.sebu.backend.domain.bookmark.*;
 import com.sebu.backend.domain.college.*;
 import com.sebu.backend.domain.department.*;
-import com.sebu.backend.domain.laboratory.*;
+import com.sebu.backend.domain.laboratory.Laboratory;
+import com.sebu.backend.domain.laboratory.LaboratoryRepository;
+import com.sebu.backend.domain.laboratory.RecruitmentStatus;
 import com.sebu.backend.domain.professor.*;
 import com.sebu.backend.domain.researchfield.*;
 import com.sebu.backend.domain.user.*;

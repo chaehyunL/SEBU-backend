@@ -1,8 +1,11 @@
 package com.sebu.backend.domain.researchfield;
 
-import org.springframework.data.jpa.repository.*;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.*;
+
+import java.util.Collection;
+import java.util.List;
 
 public interface LaboratoryResearchFieldRepository extends JpaRepository<LaboratoryResearchField, LaboratoryResearchFieldId> {
     @Query("""

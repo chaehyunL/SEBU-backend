@@ -10,7 +10,6 @@ CREATE TABLE professor (
     CONSTRAINT fk_professor_department FOREIGN KEY (department_id)
         REFERENCES department (id) ON DELETE RESTRICT
 );
-
 CREATE TABLE laboratory (
     id BIGINT NOT NULL AUTO_INCREMENT,
     professor_id BIGINT NOT NULL,
@@ -30,4 +29,3 @@ CREATE TABLE laboratory (
     CONSTRAINT fk_laboratory_department FOREIGN KEY (department_id)
         REFERENCES department (id) ON DELETE RESTRICT
 );
-

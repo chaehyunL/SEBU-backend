@@ -6,7 +6,6 @@ CREATE TABLE app_user (
     CONSTRAINT pk_app_user PRIMARY KEY (id),
     CONSTRAINT uk_app_user_email UNIQUE (email)
 );
-
 CREATE TABLE bookmark (
     user_id BIGINT NOT NULL,
     laboratory_id BIGINT NOT NULL,
@@ -17,4 +16,3 @@ CREATE TABLE bookmark (
     CONSTRAINT fk_bookmark_laboratory FOREIGN KEY (laboratory_id)
         REFERENCES laboratory (id) ON DELETE CASCADE
 );
-

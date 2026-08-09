@@ -1,5 +1,6 @@
 package com.sebu.backend.domain;
 
+import com.sebu.backend.application.laboratory.LaboratoryManagementService;
 import com.sebu.backend.domain.college.*;
 import com.sebu.backend.domain.department.*;
 import com.sebu.backend.domain.laboratory.*;

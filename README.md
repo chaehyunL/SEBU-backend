@@ -11,7 +11,7 @@
 - Spring Data JPA
 - Bean Validation
 - H2 (로컬 개발)
-- MySQL (배포)
+- MySQL 8.0.19 이상 (배포)
 
 ## 실행
 

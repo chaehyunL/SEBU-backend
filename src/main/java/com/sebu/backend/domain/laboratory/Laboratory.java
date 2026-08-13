@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -57,6 +58,7 @@ public class Laboratory extends BaseTimeEntity {
         String websiteUrl,
         RecruitmentStatus recruitmentStatus
     ) {
+        validateProfessorDepartment(professor, department);
         this.professor = professor;
         this.department = department;
         this.name = name;
@@ -70,5 +72,16 @@ public class Laboratory extends BaseTimeEntity {
 
     public boolean isDeleted() {
         return deletedAt != null;
+    }
+
+    private void validateProfessorDepartment(Professor professor, Department department) {
+        Department professorDepartment = professor.getDepartment();
+        boolean sameEntity = professorDepartment == department;
+        boolean samePersistedEntity = professorDepartment.getId() != null
+            && Objects.equals(professorDepartment.getId(), department.getId());
+
+        if (!sameEntity && !samePersistedEntity) {
+            throw new IllegalArgumentException("PROFESSOR_DEPARTMENT_MISMATCH");
+        }
     }
 }

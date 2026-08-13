@@ -31,6 +31,7 @@ class LocalSeedApiIntegrationTest {
             .andExpect(jsonPath("$.data.laboratories[0].bookmarked").value(false))
             .andExpect(jsonPath("$.data.laboratories[1].bookmarkCount").value(1))
             .andExpect(jsonPath("$.data.laboratories[2].name").value("데이터사이언스랩"))
+            .andExpect(jsonPath("$.data.laboratories[2].recruitmentStatus").value("UNKNOWN"))
             .andExpect(jsonPath("$.data.laboratories[2].websiteUrl").doesNotExist())
             .andExpect(jsonPath("$.data.laboratories[2].professor.email").doesNotExist())
             .andExpect(jsonPath("$.data.laboratories[2].researchFields").isEmpty());

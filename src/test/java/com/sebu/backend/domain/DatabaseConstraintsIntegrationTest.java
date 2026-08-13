@@ -1,13 +1,25 @@
 package com.sebu.backend.domain;
 
-import com.sebu.backend.domain.bookmark.*;
-import com.sebu.backend.domain.college.*;
-import com.sebu.backend.domain.department.*;
-import com.sebu.backend.domain.laboratory.*;
-import com.sebu.backend.domain.professor.*;
-import com.sebu.backend.domain.researchfield.*;
-import com.sebu.backend.domain.user.*;
-import jakarta.persistence.*;
+import com.sebu.backend.domain.bookmark.Bookmark;
+import com.sebu.backend.domain.bookmark.BookmarkId;
+import com.sebu.backend.domain.bookmark.BookmarkRepository;
+import com.sebu.backend.domain.college.College;
+import com.sebu.backend.domain.college.CollegeRepository;
+import com.sebu.backend.domain.department.Department;
+import com.sebu.backend.domain.department.DepartmentRepository;
+import com.sebu.backend.domain.laboratory.Laboratory;
+import com.sebu.backend.domain.laboratory.LaboratoryRepository;
+import com.sebu.backend.domain.laboratory.RecruitmentStatus;
+import com.sebu.backend.domain.professor.Professor;
+import com.sebu.backend.domain.professor.ProfessorRepository;
+import com.sebu.backend.domain.researchfield.LaboratoryResearchField;
+import com.sebu.backend.domain.researchfield.LaboratoryResearchFieldId;
+import com.sebu.backend.domain.researchfield.LaboratoryResearchFieldRepository;
+import com.sebu.backend.domain.researchfield.ResearchField;
+import com.sebu.backend.domain.researchfield.ResearchFieldRepository;
+import com.sebu.backend.domain.user.AppUser;
+import com.sebu.backend.domain.user.AppUserRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,7 +27,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -44,13 +58,85 @@ class DatabaseConstraintsIntegrationTest {
     }
 
     @Test
+    void unknownRecruitmentStatusIsStored() {
+        Hierarchy h = hierarchy("정보대학", "미분류학과", "정보없음", null);
+        Laboratory lab = laboratoryRepository.saveAndFlush(
+            new Laboratory(h.professor, h.department, "모집정보 미정 연구실", null, RecruitmentStatus.UNKNOWN)
+        );
+
+        entityManager.clear();
+
+        assertThat(laboratoryRepository.findById(lab.getId()).orElseThrow().getRecruitmentStatus())
+            .isEqualTo(RecruitmentStatus.UNKNOWN);
+    }
+
+    @Test
+    void arbitraryRecruitmentStatusIsRejected() {
+        Hierarchy h = hierarchy("제약대학", "제약학과", "제약교수", null);
+
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+            INSERT INTO laboratory (professor_id, department_id, name, recruitment_status)
+            VALUES (?, ?, ?, ?)
+            """, h.professor.getId(), h.department.getId(), "잘못된 모집상태 연구실", "UNDEFINED"))
+            .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void duplicateActiveLaboratoryNameInSameDepartmentIsRejectedByDatabase() {
+        Hierarchy h = hierarchy("공학대학", "중복학과", "중복교수", null);
+        laboratoryRepository.saveAndFlush(
+            new Laboratory(h.professor, h.department, "같은 연구실", null, RecruitmentStatus.RECRUITING)
+        );
+
+        assertThatThrownBy(() -> laboratoryRepository.saveAndFlush(
+            new Laboratory(h.professor, h.department, "같은 연구실", null, RecruitmentStatus.CLOSED)
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void sameLaboratoryNameInDifferentDepartmentsIsAllowed() {
+        College college = collegeRepository.save(new College("자유전공대학"));
+        Department firstDepartment = departmentRepository.save(new Department(college, "제1학과"));
+        Department secondDepartment = departmentRepository.save(new Department(college, "제2학과"));
+        Professor firstProfessor = professorRepository.save(new Professor(firstDepartment, "1교수", null));
+        Professor secondProfessor = professorRepository.save(new Professor(secondDepartment, "2교수", null));
+
+        laboratoryRepository.save(new Laboratory(firstProfessor, firstDepartment, "공통 연구실", null, RecruitmentStatus.RECRUITING));
+        laboratoryRepository.save(new Laboratory(secondProfessor, secondDepartment, "공통 연구실", null, RecruitmentStatus.UNKNOWN));
+
+        assertThatCode(laboratoryRepository::flush).doesNotThrowAnyException();
+    }
+
+    @Test
+    void deletedLaboratoriesDoNotBlockReusingTheName() {
+        Hierarchy h = hierarchy("사회대학", "기록학과", "기록교수", null);
+        Laboratory first = laboratoryRepository.saveAndFlush(
+            new Laboratory(h.professor, h.department, "재사용 연구실", null, RecruitmentStatus.CLOSED)
+        );
+        first.softDelete();
+        laboratoryRepository.flush();
+
+        Laboratory second = laboratoryRepository.saveAndFlush(
+            new Laboratory(h.professor, h.department, "재사용 연구실", null, RecruitmentStatus.UNKNOWN)
+        );
+        second.softDelete();
+
+        assertThatCode(laboratoryRepository::flush).doesNotThrowAnyException();
+    }
+
+    @Test
     void professorEmailIsUniqueButMultipleNullsAreAllowed() {
         College college = collegeRepository.save(new College("공과대학"));
         Department department = departmentRepository.save(new Department(college, "컴퓨터공학과"));
         professorRepository.save(new Professor(department, "교수1", null));
         professorRepository.save(new Professor(department, "교수2", null));
         professorRepository.flush();
-        assertThat(professorRepository.count()).isEqualTo(2);
+        Long professorCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM professor WHERE department_id = ?",
+            Long.class,
+            department.getId()
+        );
+        assertThat(professorCount).isEqualTo(2L);
     }
 
     @Test

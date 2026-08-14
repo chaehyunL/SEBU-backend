@@ -30,7 +30,7 @@ FROM professor p JOIN department d ON d.id = p.department_id
 WHERE p.name = '박지훈';
 
 INSERT INTO laboratory (professor_id, department_id, name, website_url, recruitment_status)
-SELECT p.id, d.id, '데이터사이언스랩', NULL, 'CLOSED'
+SELECT p.id, d.id, '데이터사이언스랩', NULL, 'UNKNOWN'
 FROM professor p JOIN department d ON d.id = p.department_id
 WHERE p.name = '이서연';
 

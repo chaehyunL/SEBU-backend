@@ -1,15 +1,25 @@
 package com.sebu.backend.domain.laboratory;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     boolean existsByDepartmentIdAndNameAndDeletedAtIsNull(Long departmentId, String name);
     Optional<Laboratory> findByIdAndDeletedAtIsNull(Long id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+        DELETE FROM laboratory
+        WHERE deleted_at IS NOT NULL
+          AND deleted_at <= :threshold
+        """, nativeQuery = true)
+    int deleteAllSoftDeletedBeforeOrEqual(@Param("threshold") LocalDateTime threshold);
 
     @Query("""
         select l.id as id, l.name as name, l.websiteUrl as websiteUrl,

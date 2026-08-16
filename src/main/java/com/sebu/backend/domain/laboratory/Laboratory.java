@@ -44,6 +44,9 @@ public class Laboratory extends BaseTimeEntity {
     @Column(name = "website_url", length = 2048)
     private String websiteUrl;
 
+    @Column(length = 2000)
+    private String description;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "recruitment_status", nullable = false, length = 30)
     private RecruitmentStatus recruitmentStatus;
@@ -58,11 +61,23 @@ public class Laboratory extends BaseTimeEntity {
         String websiteUrl,
         RecruitmentStatus recruitmentStatus
     ) {
+        this(professor, department, name, websiteUrl, null, recruitmentStatus);
+    }
+
+    public Laboratory(
+        Professor professor,
+        Department department,
+        String name,
+        String websiteUrl,
+        String description,
+        RecruitmentStatus recruitmentStatus
+    ) {
         validateProfessorDepartment(professor, department);
         this.professor = professor;
         this.department = department;
         this.name = name;
         this.websiteUrl = websiteUrl;
+        this.description = description;
         this.recruitmentStatus = recruitmentStatus;
     }
 

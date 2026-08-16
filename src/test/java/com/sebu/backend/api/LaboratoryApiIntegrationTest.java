@@ -51,7 +51,7 @@ class LaboratoryApiIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        College college = collegeRepository.save(new College("인공지능융합대학"));
+        College college = collegeRepository.save(new College("API테스트 인공지능융합대학"));
         Department ai = departmentRepository.save(new Department(college, "인공지능학과"));
         Department computer = departmentRepository.save(new Department(college, "컴퓨터공학과"));
         Professor kim = professorRepository.save(new Professor(ai, "김민준", "minjun.kim@example.ac.kr"));
@@ -83,7 +83,7 @@ class LaboratoryApiIntegrationTest {
             .andExpect(jsonPath("$.data.laboratories.length()").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].name").value("인공지능연구실"))
             .andExpect(jsonPath("$.data.laboratories[0].professor.name").value("김민준"))
-            .andExpect(jsonPath("$.data.laboratories[0].college.name").value("인공지능융합대학"))
+            .andExpect(jsonPath("$.data.laboratories[0].college.name").value("API테스트 인공지능융합대학"))
             .andExpect(jsonPath("$.data.laboratories[0].department.name").value("인공지능학과"))
             .andExpect(jsonPath("$.data.laboratories[0].researchFields.length()").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].bookmarkCount").value(2))

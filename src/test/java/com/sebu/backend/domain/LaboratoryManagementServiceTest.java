@@ -25,7 +25,7 @@ class LaboratoryManagementServiceTest {
 
     @Test
     void rejectsProfessorDepartmentMismatch() {
-        College college = collegeRepository.save(new College("인공지능융합대학"));
+        College college = collegeRepository.save(new College("서비스테스트 인공지능융합대학"));
         Department ai = departmentRepository.save(new Department(college, "인공지능학과"));
         Department computer = departmentRepository.save(new Department(college, "컴퓨터공학과"));
         Professor professor = professorRepository.save(new Professor(ai, "김교수", null));

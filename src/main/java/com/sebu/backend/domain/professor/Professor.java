@@ -15,6 +15,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Locale;
+
 @Getter
 @Entity
 @Table(name = "professor")
@@ -31,12 +33,32 @@ public class Professor extends BaseTimeEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(length = 100)
+    private String position;
+
     @Column(unique = true, length = 255)
     private String email;
 
     public Professor(Department department, String name, String email) {
+        this(department, name, null, email);
+    }
+
+    public Professor(Department department, String name, String position, String email) {
         this.department = department;
         this.name = name;
-        this.email = email == null ? null : email.trim().toLowerCase();
+        this.position = normalizeNullable(position);
+        this.email = normalizeEmail(email);
+    }
+
+    private String normalizeNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String normalizeEmail(String value) {
+        String normalized = normalizeNullable(value);
+        return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
     }
 }

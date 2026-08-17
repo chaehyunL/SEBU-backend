@@ -1,5 +1,7 @@
-package com.sebu.backend.ratelimit;
+package com.sebu.backend.global.ratelimit.service;
 
+import com.sebu.backend.global.ratelimit.config.RateLimitProperties;
+import com.sebu.backend.global.ratelimit.dto.RateLimitDecision;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.stereotype.Component;

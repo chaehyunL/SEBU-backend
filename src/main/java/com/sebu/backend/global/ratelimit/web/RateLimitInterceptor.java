@@ -1,7 +1,9 @@
-package com.sebu.backend.ratelimit;
+package com.sebu.backend.global.ratelimit.web;
 
+import com.sebu.backend.global.ratelimit.dto.RateLimitDecision;
+import com.sebu.backend.global.ratelimit.service.RateLimiter;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sebu.backend.api.common.ApiResponse;
+import com.sebu.backend.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

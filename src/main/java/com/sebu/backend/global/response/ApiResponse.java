@@ -1,4 +1,4 @@
-package com.sebu.backend.api.common;
+package com.sebu.backend.global.response;
 
 public record ApiResponse<T>(boolean success, T data, ApiError error) {
     public static <T> ApiResponse<T> success(T data) {

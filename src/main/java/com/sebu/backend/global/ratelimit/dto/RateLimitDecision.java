@@ -1,4 +1,4 @@
-package com.sebu.backend.ratelimit;
+package com.sebu.backend.global.ratelimit.dto;
 
 public record RateLimitDecision(boolean allowed, long retryAfterSeconds) {
     public static RateLimitDecision permit() {

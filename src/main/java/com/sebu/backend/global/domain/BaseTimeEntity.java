@@ -1,4 +1,4 @@
-package com.sebu.backend.domain.common;
+package com.sebu.backend.global.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;

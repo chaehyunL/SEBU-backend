@@ -1,5 +1,6 @@
-package com.sebu.backend.ratelimit;
+package com.sebu.backend.global.ratelimit.config;
 
+import com.sebu.backend.global.ratelimit.web.RateLimitInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;

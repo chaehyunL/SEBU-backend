@@ -1,5 +1,7 @@
-package com.sebu.backend.ratelimit;
+package com.sebu.backend.global.ratelimit.service;
 
+import com.sebu.backend.global.ratelimit.config.RateLimitProperties;
+import com.sebu.backend.global.ratelimit.dto.RateLimitDecision;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;

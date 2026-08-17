@@ -1,4 +1,4 @@
-package com.sebu.backend.auth;
+package com.sebu.backend.global.auth;
 
 import org.springframework.stereotype.Component;
 

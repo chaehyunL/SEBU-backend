@@ -1,4 +1,4 @@
-package com.sebu.backend.ratelimit;
+package com.sebu.backend.global.ratelimit.config;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

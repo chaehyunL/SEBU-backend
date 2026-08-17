@@ -13,6 +13,45 @@
 - H2 (로컬 개발)
 - MySQL 8.0.19 이상 (배포)
 
+## 패키지 구조
+
+비즈니스 기능을 먼저 찾을 수 있도록 feature-first 구조를 사용합니다. 각 기능 내부는 MVC 역할에 따라 분리합니다.
+
+```text
+com.sebu.backend
+├─ laboratory
+│  ├─ controller
+│  ├─ service
+│  ├─ repository
+│  ├─ domain
+│  ├─ dto
+│  ├─ config
+│  └─ scheduler
+├─ bookmark
+│  ├─ service
+│  ├─ repository
+│  └─ domain
+├─ crawling
+│  ├─ service
+│  ├─ repository
+│  ├─ domain
+│  ├─ dto
+│  ├─ port
+│  ├─ adapter
+│  ├─ config
+│  └─ runner
+├─ college | department | professor | researchfield | user
+│  ├─ repository
+│  └─ domain
+└─ global
+   ├─ auth
+   ├─ response
+   ├─ domain
+   └─ ratelimit
+```
+
+HTTP 요청은 `controller`가 받고, 비즈니스 흐름은 `service`, 데이터 접근은 `repository`, 엔티티와 값 객체는 `domain`, API 및 서비스 전달 객체는 `dto`가 담당합니다. 크롤러는 HTTP 진입점이 없는 배치 기능이므로 `controller` 대신 `runner`와 `port`/`adapter` 경계를 유지합니다.
+
 ## 실행
 
 Windows에서는 저장소 루트에서 다음 명령을 실행합니다.

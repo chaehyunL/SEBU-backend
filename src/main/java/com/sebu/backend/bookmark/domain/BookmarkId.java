@@ -1,4 +1,4 @@
-package com.sebu.backend.domain.bookmark;
+package com.sebu.backend.bookmark.domain;
 
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;

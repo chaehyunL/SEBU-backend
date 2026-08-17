@@ -1,12 +1,12 @@
-package com.sebu.backend.application.bookmark;
+package com.sebu.backend.bookmark.service;
 
-import com.sebu.backend.domain.bookmark.Bookmark;
-import com.sebu.backend.domain.bookmark.BookmarkId;
-import com.sebu.backend.domain.bookmark.BookmarkRepository;
-import com.sebu.backend.domain.laboratory.Laboratory;
-import com.sebu.backend.domain.laboratory.LaboratoryRepository;
-import com.sebu.backend.domain.user.AppUser;
-import com.sebu.backend.domain.user.AppUserRepository;
+import com.sebu.backend.bookmark.domain.Bookmark;
+import com.sebu.backend.bookmark.domain.BookmarkId;
+import com.sebu.backend.bookmark.repository.BookmarkRepository;
+import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.repository.LaboratoryRepository;
+import com.sebu.backend.user.domain.AppUser;
+import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

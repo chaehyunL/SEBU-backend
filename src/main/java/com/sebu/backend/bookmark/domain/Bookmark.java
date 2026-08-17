@@ -1,7 +1,7 @@
-package com.sebu.backend.domain.bookmark;
+package com.sebu.backend.bookmark.domain;
 
-import com.sebu.backend.domain.laboratory.Laboratory;
-import com.sebu.backend.domain.user.AppUser;
+import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.user.domain.AppUser;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;

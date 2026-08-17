@@ -1,6 +1,6 @@
-package com.sebu.backend.domain.college;
+package com.sebu.backend.researchfield.domain;
 
-import com.sebu.backend.domain.common.BaseTimeEntity;
+import com.sebu.backend.global.domain.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -13,9 +13,9 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name = "college")
+@Table(name = "research_field")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class College extends BaseTimeEntity {
+public class ResearchField extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,7 +23,7 @@ public class College extends BaseTimeEntity {
     @Column(nullable = false, unique = true, length = 100)
     private String name;
 
-    public College(String name) {
+    public ResearchField(String name) {
         this.name = name;
     }
 }

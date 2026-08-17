@@ -1,7 +1,7 @@
-package com.sebu.backend.domain.department;
+package com.sebu.backend.department.domain;
 
-import com.sebu.backend.domain.college.College;
-import com.sebu.backend.domain.common.BaseTimeEntity;
+import com.sebu.backend.college.domain.College;
+import com.sebu.backend.global.domain.BaseTimeEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

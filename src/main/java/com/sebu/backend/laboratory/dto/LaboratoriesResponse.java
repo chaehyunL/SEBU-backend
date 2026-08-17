@@ -1,7 +1,7 @@
-package com.sebu.backend.api.laboratory;
+package com.sebu.backend.laboratory.dto;
 
-import com.sebu.backend.application.laboratory.LaboratoriesResult;
-import com.sebu.backend.domain.laboratory.RecruitmentStatus;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult;
+import com.sebu.backend.laboratory.domain.RecruitmentStatus;
 
 import java.util.List;
 

@@ -1,14 +1,15 @@
-package com.sebu.backend.application.laboratory;
+package com.sebu.backend.laboratory.service;
 
-import com.sebu.backend.application.laboratory.LaboratoriesResult.CollegeResult;
-import com.sebu.backend.application.laboratory.LaboratoriesResult.DepartmentResult;
-import com.sebu.backend.application.laboratory.LaboratoriesResult.LaboratoryResult;
-import com.sebu.backend.application.laboratory.LaboratoriesResult.ProfessorResult;
-import com.sebu.backend.auth.CurrentUserProvider;
-import com.sebu.backend.domain.laboratory.LaboratoryRepository;
-import com.sebu.backend.domain.laboratory.LaboratorySummaryProjection;
-import com.sebu.backend.domain.researchfield.LaboratoryResearchFieldProjection;
-import com.sebu.backend.domain.researchfield.LaboratoryResearchFieldRepository;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult.CollegeResult;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult.DepartmentResult;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult.LaboratoryResult;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult.ProfessorResult;
+import com.sebu.backend.global.auth.CurrentUserProvider;
+import com.sebu.backend.laboratory.repository.LaboratoryRepository;
+import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
+import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
+import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

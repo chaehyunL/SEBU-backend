@@ -1,6 +1,6 @@
-package com.sebu.backend.api;
+package com.sebu.backend.laboratory.controller;
 
-import com.sebu.backend.auth.CurrentUserProvider;
+import com.sebu.backend.global.auth.CurrentUserProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

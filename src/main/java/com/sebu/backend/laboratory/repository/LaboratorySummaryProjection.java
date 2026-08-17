@@ -1,4 +1,6 @@
-package com.sebu.backend.domain.laboratory;
+package com.sebu.backend.laboratory.repository;
+
+import com.sebu.backend.laboratory.domain.RecruitmentStatus;
 
 public interface LaboratorySummaryProjection {
     Long getId();

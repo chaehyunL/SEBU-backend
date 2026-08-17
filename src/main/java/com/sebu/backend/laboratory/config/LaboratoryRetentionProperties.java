@@ -1,4 +1,4 @@
-package com.sebu.backend.application.laboratory;
+package com.sebu.backend.laboratory.config;
 
 import jakarta.validation.constraints.Min;
 import org.springframework.boot.context.properties.ConfigurationProperties;

@@ -1,5 +1,7 @@
-package com.sebu.backend.domain.researchfield;
+package com.sebu.backend.laboratory.repository;
 
+import com.sebu.backend.laboratory.domain.LaboratoryResearchField;
+import com.sebu.backend.laboratory.domain.LaboratoryResearchFieldId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

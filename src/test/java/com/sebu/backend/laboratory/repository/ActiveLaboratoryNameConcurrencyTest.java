@@ -1,11 +1,11 @@
-package com.sebu.backend.domain;
+package com.sebu.backend.laboratory.repository;
 
-import com.sebu.backend.domain.college.College;
-import com.sebu.backend.domain.college.CollegeRepository;
-import com.sebu.backend.domain.department.Department;
-import com.sebu.backend.domain.department.DepartmentRepository;
-import com.sebu.backend.domain.professor.Professor;
-import com.sebu.backend.domain.professor.ProfessorRepository;
+import com.sebu.backend.college.domain.College;
+import com.sebu.backend.college.repository.CollegeRepository;
+import com.sebu.backend.department.domain.Department;
+import com.sebu.backend.department.repository.DepartmentRepository;
+import com.sebu.backend.professor.domain.Professor;
+import com.sebu.backend.professor.repository.ProfessorRepository;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;

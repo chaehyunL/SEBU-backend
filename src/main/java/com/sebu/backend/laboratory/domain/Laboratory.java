@@ -1,8 +1,8 @@
-package com.sebu.backend.domain.laboratory;
+package com.sebu.backend.laboratory.domain;
 
-import com.sebu.backend.domain.common.BaseTimeEntity;
-import com.sebu.backend.domain.department.Department;
-import com.sebu.backend.domain.professor.Professor;
+import com.sebu.backend.global.domain.BaseTimeEntity;
+import com.sebu.backend.department.domain.Department;
+import com.sebu.backend.professor.domain.Professor;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

@@ -1,6 +1,7 @@
-package com.sebu.backend.application.laboratory;
+package com.sebu.backend.laboratory.service;
 
-import com.sebu.backend.domain.laboratory.LaboratoryRepository;
+import com.sebu.backend.laboratory.config.LaboratoryRetentionProperties;
+import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,4 +1,4 @@
-package com.sebu.backend.api;
+package com.sebu.backend.laboratory.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

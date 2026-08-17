@@ -1,7 +1,8 @@
-package com.sebu.backend.api.laboratory;
+package com.sebu.backend.laboratory.controller;
 
-import com.sebu.backend.api.common.ApiResponse;
-import com.sebu.backend.application.laboratory.LaboratoryQueryService;
+import com.sebu.backend.laboratory.dto.LaboratoriesResponse;
+import com.sebu.backend.global.response.ApiResponse;
+import com.sebu.backend.laboratory.service.LaboratoryQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

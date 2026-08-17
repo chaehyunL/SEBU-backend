@@ -1,4 +1,4 @@
-package com.sebu.backend.domain.researchfield;
+package com.sebu.backend.laboratory.domain;
 
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;

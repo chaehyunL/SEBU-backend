@@ -1,13 +1,13 @@
-package com.sebu.backend.domain;
+package com.sebu.backend.laboratory.service;
 
-import com.sebu.backend.application.laboratory.LaboratoryManagementService;
-import com.sebu.backend.domain.college.College;
-import com.sebu.backend.domain.college.CollegeRepository;
-import com.sebu.backend.domain.department.Department;
-import com.sebu.backend.domain.department.DepartmentRepository;
-import com.sebu.backend.domain.laboratory.RecruitmentStatus;
-import com.sebu.backend.domain.professor.Professor;
-import com.sebu.backend.domain.professor.ProfessorRepository;
+import com.sebu.backend.laboratory.service.LaboratoryManagementService;
+import com.sebu.backend.college.domain.College;
+import com.sebu.backend.college.repository.CollegeRepository;
+import com.sebu.backend.department.domain.Department;
+import com.sebu.backend.department.repository.DepartmentRepository;
+import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.professor.domain.Professor;
+import com.sebu.backend.professor.repository.ProfessorRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

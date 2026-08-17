@@ -1,5 +1,6 @@
-package com.sebu.backend.application.laboratory;
+package com.sebu.backend.laboratory.scheduler;
 
+import com.sebu.backend.laboratory.service.LaboratoryPurgeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

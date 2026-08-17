@@ -1,4 +1,4 @@
-package com.sebu.backend.application.laboratory;
+package com.sebu.backend.laboratory.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;

@@ -1,5 +1,6 @@
-package com.sebu.backend.domain.laboratory;
+package com.sebu.backend.laboratory.repository;
 
+import com.sebu.backend.laboratory.domain.Laboratory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

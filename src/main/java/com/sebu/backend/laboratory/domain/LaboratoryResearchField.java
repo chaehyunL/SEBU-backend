@@ -1,6 +1,7 @@
-package com.sebu.backend.domain.researchfield;
+package com.sebu.backend.laboratory.domain;
 
-import com.sebu.backend.domain.laboratory.Laboratory;
+import com.sebu.backend.researchfield.domain.ResearchField;
+import com.sebu.backend.laboratory.domain.Laboratory;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;

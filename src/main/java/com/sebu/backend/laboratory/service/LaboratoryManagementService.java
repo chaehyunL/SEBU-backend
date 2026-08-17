@@ -1,12 +1,12 @@
-package com.sebu.backend.application.laboratory;
+package com.sebu.backend.laboratory.service;
 
-import com.sebu.backend.domain.department.Department;
-import com.sebu.backend.domain.department.DepartmentRepository;
-import com.sebu.backend.domain.laboratory.Laboratory;
-import com.sebu.backend.domain.laboratory.LaboratoryRepository;
-import com.sebu.backend.domain.laboratory.RecruitmentStatus;
-import com.sebu.backend.domain.professor.Professor;
-import com.sebu.backend.domain.professor.ProfessorRepository;
+import com.sebu.backend.department.domain.Department;
+import com.sebu.backend.department.repository.DepartmentRepository;
+import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.repository.LaboratoryRepository;
+import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.professor.domain.Professor;
+import com.sebu.backend.professor.repository.ProfessorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

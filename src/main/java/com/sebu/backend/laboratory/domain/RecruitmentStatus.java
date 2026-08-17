@@ -1,4 +1,4 @@
-package com.sebu.backend.domain.laboratory;
+package com.sebu.backend.laboratory.domain;
 
 public enum RecruitmentStatus {
     RECRUITING,

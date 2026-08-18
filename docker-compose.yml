@@ -1,0 +1,10 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sebu-backend:local
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"

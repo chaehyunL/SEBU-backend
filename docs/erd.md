@@ -10,6 +10,7 @@ erDiagram
     CRAWL_SOURCE ||--o{ PROFESSOR_CRAWL_CANDIDATE : produces
     LABORATORY ||--o{ LABORATORY_RESEARCH_FIELD : has
     RESEARCH_FIELD ||--o{ LABORATORY_RESEARCH_FIELD : classifies
+    DEPARTMENT o|--o{ APP_USER : majors_in
     APP_USER ||--o{ BOOKMARK : creates
     LABORATORY ||--o{ BOOKMARK : receives
 ```
@@ -28,5 +29,11 @@ erDiagram
 - 후보의 우선 식별키는 이메일, 홈페이지, 정규화한 이름 순서로 만든다. 재크롤링에서는 이메일·홈페이지·고유한 이름을 별칭으로 비교해 연락처가 일시 누락되어도 기존 후보를 이어 간다.
 - `(source_id, source_identity_key)` 유니크 제약으로 원본 사이트의 완전 중복은 합치되, 같은 이름이고 이메일 또는 홈페이지가 다른 실제 동명이인은 각각 보존한다. 안정적인 식별 정보가 전혀 없는 동명이인은 자동 병합하지 않고 충돌로 처리한다.
 - 크롤링과 검수가 동시에 같은 행을 수정하면 조용히 덮어쓰지 않도록 출처와 후보에 낙관적 잠금 버전을 둔다.
+- 사용자의 이름, 학년, 전공, GPA 구간, 자기소개는 `app_user`에서 관리한다. 로그인 직후 프로필이 미완성일 수 있으므로 필수 입력값도 DB에서는 `NULL`을 허용한다.
+- 사용자의 전공은 `major_department_id`로 기존 학과를 참조하며 단과대 컬럼을 중복 저장하지 않는다.
+- GPA 구간은 `GTE_3_0`, `GTE_3_5`, `GTE_4_0`만 허용하고, 미선택 상태는 `NULL`로 표현한다.
+- 자기소개는 최대 500자이며 승인된 내용과 검수 시각·정책·제공자 버전을 같은 트랜잭션에서 저장한다.
+- 회원 탈퇴 상태는 `app_user.deleted_at`으로 기록한다.
 - `bookmarkCount`는 저장하지 않고 `bookmark`를 집계하며, `(laboratory_id)` 보조 인덱스를 사용한다.
+- 마이페이지의 최신 북마크 조회는 `(user_id, created_at DESC, laboratory_id DESC)` 인덱스를 사용한다.
 - 단과대·학과·교수 참조 삭제는 제한하고, 연구실 물리 삭제 시 연결 데이터와 북마크는 연쇄 삭제한다.

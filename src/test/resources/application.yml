@@ -15,6 +15,22 @@ spring:
     enabled: true
 
 app:
+  auth:
+    token:
+      jwt-secret-base64: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
+      access-token-expiration: 30m
+      refresh-token-expiration: 14d
+    cookie:
+      secure: true
+    sejong:
+      portal-login-url: https://portal.sejong.ac.kr/jsp/login/login_action.jsp
+      sso-login-url: https://sjpt.sejong.ac.kr/main/view/Login/doSsoLogin.do
+      user-info-url: https://sjpt.sejong.ac.kr/main/sys/UserInfo/initUserInfo.do
+      connect-timeout: 5s
+      request-timeout: 10s
   rate-limit:
     max-requests: 30
     window: 1m
+    login:
+      max-requests: 5
+      window: 1m

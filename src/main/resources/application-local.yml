@@ -20,3 +20,8 @@ spring:
       - classpath:db/migration
       - classpath:db/local
 
+app:
+  auth:
+    cookie:
+      secure: false
+

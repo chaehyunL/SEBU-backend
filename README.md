@@ -67,6 +67,37 @@ Windows에서는 저장소 루트에서 다음 명령을 실행합니다.
 - Username: `sa`
 - Password: 없음
 
+## Docker 실행
+
+Docker Compose로 Java 21 빌드와 백엔드 실행을 한 번에 처리할 수 있습니다.
+
+```powershell
+docker compose up --build -d
+docker compose ps
+```
+
+기본적으로 `local` 프로필과 H2 인메모리 DB를 사용하며, 다음 API로 응답을 확인합니다.
+
+```powershell
+Invoke-RestMethod http://localhost:8080/api/v1/laboratories
+```
+
+호스트의 8080 포트가 사용 중이면 `BACKEND_PORT`로 변경할 수 있습니다.
+
+```powershell
+$env:BACKEND_PORT = 18080
+docker compose up --build -d
+Invoke-RestMethod http://localhost:18080/api/v1/laboratories
+```
+
+로그 확인, 재시작 및 종료 명령은 다음과 같습니다.
+
+```powershell
+docker compose logs -f backend
+docker compose restart backend
+docker compose down
+```
+
 ## 테스트
 
 ```powershell

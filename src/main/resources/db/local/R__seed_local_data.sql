@@ -1,14 +1,35 @@
 INSERT INTO college (name)
-VALUES ('인공지능융합대학');
+SELECT '인공지능융합대학'
+WHERE NOT EXISTS (
+    SELECT 1 FROM college WHERE name = '인공지능융합대학'
+);
 
 INSERT INTO department (college_id, name)
-SELECT id, '인공지능학과' FROM college WHERE name = '인공지능융합대학';
+SELECT c.id, '인공지능학과'
+FROM college c
+WHERE c.name = '인공지능융합대학'
+  AND NOT EXISTS (
+      SELECT 1 FROM department d
+      WHERE d.college_id = c.id AND d.name = '인공지능학과'
+  );
 
 INSERT INTO department (college_id, name)
-SELECT id, '컴퓨터공학과' FROM college WHERE name = '인공지능융합대학';
+SELECT c.id, '컴퓨터공학과'
+FROM college c
+WHERE c.name = '인공지능융합대학'
+  AND NOT EXISTS (
+      SELECT 1 FROM department d
+      WHERE d.college_id = c.id AND d.name = '컴퓨터공학과'
+  );
 
 INSERT INTO department (college_id, name)
-SELECT id, '데이터사이언스학과' FROM college WHERE name = '인공지능융합대학';
+SELECT c.id, '인공지능데이터사이언스학과'
+FROM college c
+WHERE c.name = '인공지능융합대학'
+  AND NOT EXISTS (
+      SELECT 1 FROM department d
+      WHERE d.college_id = c.id AND d.name = '인공지능데이터사이언스학과'
+  );
 
 INSERT INTO professor (department_id, name, email)
 SELECT id, '김민준', 'minjun.kim@example.ac.kr' FROM department WHERE name = '인공지능학과';
@@ -17,7 +38,7 @@ INSERT INTO professor (department_id, name, email)
 SELECT id, '박지훈', 'jihun.park@example.ac.kr' FROM department WHERE name = '컴퓨터공학과';
 
 INSERT INTO professor (department_id, name, email)
-SELECT id, '이서연', NULL FROM department WHERE name = '데이터사이언스학과';
+SELECT id, '이서연', NULL FROM department WHERE name = '인공지능데이터사이언스학과';
 
 INSERT INTO laboratory (professor_id, department_id, name, website_url, recruitment_status)
 SELECT p.id, d.id, '인공지능연구실', 'https://ai-lab.example.ac.kr', 'RECRUITING'

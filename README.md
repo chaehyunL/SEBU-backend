@@ -123,5 +123,9 @@ docker compose down
 DB_URL=jdbc:mysql://host:3306/database
 DB_USERNAME=...
 DB_PASSWORD=...
+JWT_SECRET_BASE64=... # Base64로 인코딩한 32바이트 이상의 랜덤 키
 SPRING_PROFILES_ACTIVE=prod
 ```
+
+JWT Access Token 서명 키는 코드나 설정 파일에 저장하지 않고 `JWT_SECRET_BASE64` 환경 변수로 전달합니다.
+로컬 실행에서도 같은 환경 변수가 필요하며, 테스트는 `src/test/resources/application.yml`의 테스트 전용 키를 사용합니다.

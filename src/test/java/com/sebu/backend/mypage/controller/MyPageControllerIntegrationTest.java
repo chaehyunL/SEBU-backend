@@ -261,6 +261,4 @@ public class MyPageControllerIntegrationTest {
                 )
                 .andExpect(status().isUnauthorized());
     }
-
-
 }

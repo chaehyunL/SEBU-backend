@@ -1,5 +1,6 @@
 package com.sebu.backend.mypage.controller;
 
+import com.sebu.backend.auth.exception.AccessTokenInvalidException;
 import com.sebu.backend.global.auth.CurrentUserProvider;
 import com.sebu.backend.global.response.ApiResponse;
 import com.sebu.backend.mypage.dto.MyPageResponse;
@@ -32,7 +33,7 @@ public class MyPageController {
     @GetMapping("/mypage")
     public ResponseEntity<ApiResponse<MyPageResponse>> getMyPage(){
         Long userId = currentUserProvider.currentUserId()
-                .orElseThrow(()->new IllegalArgumentException("AUTHENTICATION_REQUIRED"));
+                .orElseThrow(AccessTokenInvalidException::new);
 
         MyPageResponse response = myPageService.getMyPage(userId);
 

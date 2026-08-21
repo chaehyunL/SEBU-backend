@@ -1,5 +1,6 @@
 package com.sebu.backend.global.exception;
 
+import com.sebu.backend.auth.exception.AccessTokenInvalidException;
 import com.sebu.backend.global.response.ApiResponse;
 import com.sebu.backend.mypage.moderation.IntroductionModerationException;
 import com.sebu.backend.mypage.moderation.IntroductionModerationUnavailableException;
@@ -32,6 +33,18 @@ public class ExceptionControllerAdvice {
                 .body(ApiResponse.failure(
                         "INTRODUCTION_MODERATION_UNAVAILABLE",
                         "자기소개 검사 시스템을 사용할 수 없습니다."
+                ));
+    }
+
+    @ExceptionHandler(AccessTokenInvalidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessTokenInvalid(
+            AccessTokenInvalidException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.failure(
+                        "ACCESS_TOKEN_INVALID",
+                        "유효하지 않은 Access Token입니다."
                 ));
     }
 }

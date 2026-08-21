@@ -215,7 +215,7 @@ public class MyPageControllerIntegrationTest {
                 )
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.error.code")
-                        .value("INTRODUCTION_MODERATION_UNAVAILABLE"));
+                .value("CONTENT_MODERATION_UNAVAILABLE"));
     }
 
     @Test
@@ -256,9 +256,127 @@ public class MyPageControllerIntegrationTest {
                         get("/api/v1/users/me/mypage")
                                 .with(jwt().jwt(jwt -> jwt
                                         .subject(user.getId().toString())
+
                                         .claim("role", "USER")
                                 ))
                 )
                 .andExpect(status().isUnauthorized());
+    }
+    @Test
+    void 자기소개가_정책에_위반되면_422를_반환하고_프로필은_변경되지_않는다() throws Exception {
+        // given
+        AppUser user = appUserRepository.save(
+                new AppUser("profile-policy@example.com")
+        );
+
+        College college = collegeRepository.save(
+                new College("정책테스트대학")
+        );
+
+        Department major = departmentRepository.save(
+                new Department(college, "정책테스트학과")
+        );
+
+        when(introductionModerator.moderate("차 단.테-스 트 표현"))
+                .thenReturn(
+                        new ModerationResult(
+                                false,
+                                "v1",
+                                "test-provider"
+                        )
+                );
+
+        String requestBody = """
+        {
+          "name": "홍길동",
+          "grade": 3,
+          "majorId": "%s",
+          "gpaBand": "GTE_3_5",
+          "introduction": "차 단.테-스 트 표현"
+        }
+        """.formatted(major.getId());
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/profile")
+                                .with(jwt().jwt(jwt -> jwt
+                                        .subject(user.getId().toString())
+                                        .claim("role", "USER")
+                                ))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code")
+                        .value("CONTENT_POLICY_VIOLATION"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].field")
+                        .value("introduction"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].reason")
+                        .value("INAPPROPRIATE_CONTENT"));
+
+        AppUser savedUser = appUserRepository.findById(user.getId())
+                .orElseThrow();
+
+        assertThat(savedUser.getName()).isNull();
+        assertThat(savedUser.getGrade()).isNull();
+        assertThat(savedUser.getMajorDepartment()).isNull();
+        assertThat(savedUser.getGpaBand()).isNull();
+        assertThat(savedUser.getIntroduction()).isEmpty();
+        assertThat(savedUser.getProfileUpdatedAt()).isNull();
+    }
+
+    @Test
+    void 자기소개_검사_시스템에_장애가_발생하면_503을_반환하고_프로필은_변경되지_않는다() throws Exception {
+        // given
+        AppUser user = appUserRepository.save(
+                new AppUser("profile-moderation-error@example.com")
+        );
+
+        College college = collegeRepository.save(
+                new College("모더레이션장애테스트대학")
+        );
+
+        Department major = departmentRepository.save(
+                new Department(college, "모더레이션장애테스트학과")
+        );
+
+        when(introductionModerator.moderate("검사할 자기소개"))
+                .thenThrow(new IntroductionModerationUnavailableException());
+
+        String requestBody = """
+            {
+              "name": "홍길동",
+              "grade": 3,
+              "majorId": "%s",
+              "gpaBand": "GTE_3_5",
+              "introduction": "검사할 자기소개"
+            }
+            """.formatted(major.getId());
+
+        // when & then
+        mockMvc.perform(
+                        put("/api/v1/users/me/profile")
+                                .with(jwt().jwt(jwt -> jwt
+                                        .subject(user.getId().toString())
+                                        .claim("role", "USER")
+                                ))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error.code")
+                        .value("CONTENT_MODERATION_UNAVAILABLE"))
+                .andExpect(jsonPath("$.error.fieldErrors").isArray())
+                .andExpect(jsonPath("$.error.fieldErrors").isEmpty());
+
+        // DB가 변경되지 않았는지 확인
+        AppUser savedUser = appUserRepository.findById(user.getId())
+                .orElseThrow();
+
+        assertThat(savedUser.getName()).isNull();
+        assertThat(savedUser.getGrade()).isNull();
+        assertThat(savedUser.getMajorDepartment()).isNull();
+        assertThat(savedUser.getGpaBand()).isNull();
+        assertThat(savedUser.getIntroduction()).isEmpty();
+        assertThat(savedUser.getProfileUpdatedAt()).isNull();
     }
 }

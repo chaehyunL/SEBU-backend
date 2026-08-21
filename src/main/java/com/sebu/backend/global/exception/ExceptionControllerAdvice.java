@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.List;
+
 @RestControllerAdvice
 public class ExceptionControllerAdvice {
 
@@ -19,11 +21,18 @@ public class ExceptionControllerAdvice {
         return ResponseEntity
                 .unprocessableEntity()
                 .body(ApiResponse.failure(
-                        "INTRODUCTION_POLICY_VIOLATION",
-                        "자기소개가 콘텐츠 정책을 위반했습니다."
+                        "CONTENT_POLICY_VIOLATION",
+                        "입력 내용을 확인해 주세요.",
+                        List.of(
+                                new ApiResponse.FieldError(
+                                        "introduction",
+                                        "INAPPROPRIATE_CONTENT",
+                                        "자기소개에 사용할 수 없는 표현이 포함되어 있습니다. 욕설이나 선정적인 표현을 수정해 주세요."
+                                )
+                        ),
+                        null
                 ));
     }
-
     @ExceptionHandler(IntroductionModerationUnavailableException.class)
     public ResponseEntity<ApiResponse<Void>> handleIntroductionModerationUnavailable(
             IntroductionModerationUnavailableException exception
@@ -31,8 +40,10 @@ public class ExceptionControllerAdvice {
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ApiResponse.failure(
-                        "INTRODUCTION_MODERATION_UNAVAILABLE",
-                        "자기소개 검사 시스템을 사용할 수 없습니다."
+                        "CONTENT_MODERATION_UNAVAILABLE",
+                        "자기소개를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                        List.of(),
+                        null
                 ));
     }
 

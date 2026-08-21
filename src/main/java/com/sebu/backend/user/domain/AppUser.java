@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -105,5 +106,52 @@ public class AppUser extends BaseTimeEntity {
             throw new IllegalArgumentException("PROVIDER_USER_ID_REQUIRED");
         }
         return value.trim();
+    }
+
+    public void updateProfile(
+            String name,
+            Short grade,
+            Department majorDepartment,
+            GpaBand gpaBand,
+            String introduction,
+            LocalDateTime moderatedAt,
+            String policyVersion,
+            String providerVersion
+    ) {
+        boolean changed =
+                !Objects.equals(this.name, name)
+                        || !Objects.equals(this.grade, grade)
+                        || !Objects.equals(this.majorDepartment, majorDepartment)
+                        || !Objects.equals(this.gpaBand, gpaBand)
+                        || !Objects.equals(this.introduction, introduction);
+
+        this.name = name;
+        this.grade = grade;
+        this.majorDepartment = majorDepartment;
+        this.gpaBand = gpaBand;
+        this.introduction = introduction;
+
+        this.introductionModeratedAt = moderatedAt;
+        this.introductionPolicyVersion = policyVersion;
+        this.introductionProviderVersion = providerVersion;
+
+        this.profileCompleted =
+                name != null
+                        && grade != null
+                        && majorDepartment != null;
+
+        if (changed) {
+            this.profileUpdatedAt = LocalDateTime.now();
+        }
+    }
+
+    public void withdraw() {
+        if (this.deletedAt == null) {
+            this.deletedAt = LocalDateTime.now();
+        }
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
     }
 }

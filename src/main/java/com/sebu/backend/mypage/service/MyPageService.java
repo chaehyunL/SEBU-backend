@@ -152,8 +152,12 @@ public class MyPageService {
                         laboratory.getId(),
                         List.of()
                 );
+
         long bookmarkCount =
-                bookmarkRepository.countByLaboratory_Id(laboratory.getId());
+                bookmarkRepository.countActiveByLaboratoryId(
+                        laboratory.getId()
+                );
+
         return new MyPageResponse.LaboratorySummary(
                 laboratory.getId().toString(),
                 laboratory.getName(),
@@ -161,13 +165,9 @@ public class MyPageService {
                 collegeSummary,
                 departmentSummary,
                 professorSummary,
-
                 researchFields,
-
                 laboratory.getRecruitmentStatus().name(),
-
                 bookmarkCount,
-
                 true
         );
 

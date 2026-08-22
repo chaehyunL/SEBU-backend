@@ -49,7 +49,9 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
         join l.professor p
         join l.department d
         join d.college c
-        left join Bookmark b on b.laboratory = l
+        left join Bookmark b
+            on b.laboratory = l
+            and b.user.deletedAt is null
         where l.deletedAt is null
         group by l.id, l.name, l.websiteUrl,
                  p.id, p.name, p.email,
@@ -82,7 +84,9 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
         join l.professor p
         join l.department d
         join d.college c
-        left join Bookmark b on b.laboratory = l
+        left join Bookmark b
+            on b.laboratory = l
+            and b.user.deletedAt is null
         where l.deletedAt is null
           and l.id in :laboratoryIds
         group by l.id, l.name, l.websiteUrl,

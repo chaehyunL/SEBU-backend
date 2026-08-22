@@ -16,7 +16,15 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, BookmarkId> 
 
     List<Bookmark> findTop5ByUser_IdOrderByCreatedAtDesc(Long userId);
 
-    long countByLaboratory_Id(Long laboratoryId);
+    @Query("""
+            select count(b)
+            from Bookmark b
+            where b.laboratory.id = :laboratoryId
+              and b.user.deletedAt is null
+            """)
+    long countActiveByLaboratoryId(
+            @Param("laboratoryId") Long laboratoryId
+    );
 
     @Query("""
             select b

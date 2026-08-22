@@ -28,12 +28,6 @@ public class ProfileService {
             Long userId,
             ProfileUpdateRequest request
     ) {
-        ModerationResult moderationResult =
-                introductionModerator.moderate(request.introduction());
-
-        if (!moderationResult.allowed()) {
-            throw new IntroductionModerationException();
-        }
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("USER_NOT_FOUND"));
@@ -49,6 +43,13 @@ public class ProfileService {
         Department major = departmentRepository.findById(majorId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("MAJOR_NOT_FOUND"));
+
+        ModerationResult moderationResult =
+                introductionModerator.moderate(request.introduction());
+
+        if (!moderationResult.allowed()) {
+            throw new IntroductionModerationException();
+        }
 
         String normalizedName = request.name().trim();
 

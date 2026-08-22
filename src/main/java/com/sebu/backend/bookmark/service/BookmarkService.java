@@ -5,10 +5,12 @@ import com.sebu.backend.bookmark.domain.BookmarkId;
 import com.sebu.backend.bookmark.dto.BookmarkedLaboratoriesResponse;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
 import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult;
+import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
-import com.sebu.backend.mypage.dto.MyPageResponse;
+import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,21 +28,26 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class BookmarkService {
+
     private final AppUserRepository appUserRepository;
     private final LaboratoryRepository laboratoryRepository;
     private final BookmarkRepository bookmarkRepository;
     private final LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
+    private final LaboratorySummaryAssembler laboratorySummaryAssembler;
 
     @Transactional
     public void add(Long userId, Long laboratoryId) {
         AppUser user = appUserRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
+                .orElseThrow(() ->
+                        new IllegalArgumentException("USER_NOT_FOUND"));
 
         Laboratory laboratory = laboratoryRepository
                 .findByIdAndDeletedAtIsNull(laboratoryId)
-                .orElseThrow(() -> new IllegalArgumentException("LABORATORY_NOT_FOUND"));
+                .orElseThrow(() ->
+                        new IllegalArgumentException("LABORATORY_NOT_FOUND"));
 
-        BookmarkId bookmarkId = new BookmarkId(userId, laboratoryId);
+        BookmarkId bookmarkId =
+                new BookmarkId(userId, laboratoryId);
 
         if (bookmarkRepository.existsById(bookmarkId)) {
             return;
@@ -48,6 +55,192 @@ public class BookmarkService {
 
         bookmarkRepository.save(
                 new Bookmark(user, laboratory)
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public BookmarkedLaboratoriesResponse getBookmarkedLaboratories(
+            Long userId,
+            String cursor,
+            int size
+    ) {
+        if (size < 1 || size > 50) {
+            throw new IllegalArgumentException("INVALID_SIZE");
+        }
+
+        CursorValue cursorValue = decodeCursor(cursor);
+
+        List<Bookmark> results =
+                bookmarkRepository.findBookmarkedLaboratories(
+                        userId,
+                        cursorValue.createdAt(),
+                        cursorValue.laboratoryId(),
+                        PageRequest.of(0, size + 1)
+                );
+
+        boolean hasNext = results.size() > size;
+
+        List<Bookmark> pageItems = hasNext
+                ? results.subList(0, size)
+                : results;
+
+        List<Long> laboratoryIds = pageItems.stream()
+                .map(bookmark ->
+                        bookmark.getLaboratory().getId())
+                .toList();
+
+        Map<Long, LaboratorySummaryProjection> summaryByLaboratoryId =
+                getLaboratorySummaries(
+                        userId,
+                        laboratoryIds
+                );
+
+        Map<Long, List<String>> researchFieldsByLaboratoryId =
+                getResearchFields(laboratoryIds);
+
+        List<BookmarkedLaboratoriesResponse.BookmarkedLaboratory> items =
+                pageItems.stream()
+                        .map(bookmark ->
+                                toBookmarkedLaboratory(
+                                        bookmark,
+                                        summaryByLaboratoryId,
+                                        researchFieldsByLaboratoryId
+                                )
+                        )
+                        .toList();
+
+        String nextCursor =
+                hasNext && !pageItems.isEmpty()
+                        ? encodeCursor(pageItems.getLast())
+                        : null;
+
+        return new BookmarkedLaboratoriesResponse(
+                items,
+                nextCursor,
+                hasNext
+        );
+    }
+
+    @Transactional
+    public void remove(Long userId, Long laboratoryId) {
+        laboratoryRepository
+                .findByIdAndDeletedAtIsNull(laboratoryId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "LABORATORY_NOT_FOUND"
+                        ));
+
+        BookmarkId bookmarkId =
+                new BookmarkId(userId, laboratoryId);
+
+        if (!bookmarkRepository.existsById(bookmarkId)) {
+            return;
+        }
+
+        bookmarkRepository.deleteById(bookmarkId);
+    }
+
+    private Map<Long, LaboratorySummaryProjection> getLaboratorySummaries(
+            Long userId,
+            List<Long> laboratoryIds
+    ) {
+        if (laboratoryIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return laboratoryRepository
+                .findSummariesByIds(
+                        userId,
+                        laboratoryIds
+                )
+                .stream()
+                .collect(Collectors.toMap(
+                        LaboratorySummaryProjection::getId,
+                        summary -> summary
+                ));
+    }
+
+    private Map<Long, List<String>> getResearchFields(
+            List<Long> laboratoryIds
+    ) {
+        if (laboratoryIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return laboratoryResearchFieldRepository
+                .findFieldsByLaboratoryIds(laboratoryIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        LaboratoryResearchFieldProjection::getLaboratoryId,
+                        Collectors.mapping(
+                                LaboratoryResearchFieldProjection::getName,
+                                Collectors.toList()
+                        )
+                ));
+    }
+
+    private BookmarkedLaboratoriesResponse.BookmarkedLaboratory toBookmarkedLaboratory(
+            Bookmark bookmark,
+            Map<Long, LaboratorySummaryProjection> summaryByLaboratoryId,
+            Map<Long, List<String>> researchFieldsByLaboratoryId
+    ) {
+        Long laboratoryId =
+                bookmark.getLaboratory().getId();
+
+        LaboratorySummaryProjection projection =
+                summaryByLaboratoryId.get(laboratoryId);
+
+        if (projection == null) {
+            throw new IllegalStateException(
+                    "LABORATORY_SUMMARY_NOT_FOUND"
+            );
+        }
+
+        List<String> researchFields =
+                researchFieldsByLaboratoryId.getOrDefault(
+                        laboratoryId,
+                        List.of()
+                );
+
+        LaboratoriesResult.LaboratoryResult result =
+                laboratorySummaryAssembler.assemble(
+                        projection,
+                        researchFields
+                );
+
+        return new BookmarkedLaboratoriesResponse.BookmarkedLaboratory(
+                bookmark.getCreatedAt(),
+                toLaboratorySummary(result)
+        );
+    }
+
+    private BookmarkedLaboratoriesResponse.LaboratorySummary toLaboratorySummary(
+            LaboratoriesResult.LaboratoryResult result
+    ) {
+        return new BookmarkedLaboratoriesResponse.LaboratorySummary(
+                result.id().toString(),
+                result.name(),
+                result.websiteUrl(),
+
+                new BookmarkedLaboratoriesResponse.CollegeSummary(
+                        result.college().id().toString(),
+                        result.college().name()
+                ),
+
+                new BookmarkedLaboratoriesResponse.DepartmentSummary(
+                        result.department().id().toString(),
+                        result.department().name()
+                ),
+
+                new BookmarkedLaboratoriesResponse.ProfessorSummary(
+                        result.professor().id().toString(),
+                        result.professor().name()
+                ),
+
+                result.researchFields(),
+                result.recruitmentStatus().name(),
+                result.bookmarkCount(),
+                result.bookmarked()
         );
     }
 
@@ -65,7 +258,9 @@ public class BookmarkService {
             String[] parts = decoded.split("\\|");
 
             if (parts.length != 2) {
-                throw new IllegalArgumentException("INVALID_CURSOR");
+                throw new IllegalArgumentException(
+                        "INVALID_CURSOR"
+                );
             }
 
             return new CursorValue(
@@ -73,11 +268,12 @@ public class BookmarkService {
                     Long.parseLong(parts[1])
             );
 
-        } catch (Exception e) {
-            throw new IllegalArgumentException("INVALID_CURSOR");
+        } catch (Exception exception) {
+            throw new IllegalArgumentException(
+                    "INVALID_CURSOR"
+            );
         }
     }
-
 
     private String encodeCursor(Bookmark bookmark) {
         String value =
@@ -92,157 +288,9 @@ public class BookmarkService {
                 );
     }
 
-    private MyPageResponse.BookmarkedLaboratory toBookmarkedLaboratory(
-            Bookmark bookmark,
-            Map<Long, List<String>> researchFieldsByLaboratoryId
-    ) {
-        return new MyPageResponse.BookmarkedLaboratory(
-                bookmark.getCreatedAt(),
-                toLaboratorySummary(
-                        bookmark.getLaboratory(),
-                        researchFieldsByLaboratoryId
-                )
-        );
-    }
-
-    private MyPageResponse.LaboratorySummary toLaboratorySummary(
-            Laboratory laboratory,
-            Map<Long, List<String>> researchFieldsByLaboratoryId
-    ) {
-        var department = laboratory.getDepartment();
-        var college = department.getCollege();
-        var professor = laboratory.getProfessor();
-
-        List<String> researchFields =
-                researchFieldsByLaboratoryId.getOrDefault(
-                        laboratory.getId(),
-                        List.of()
-                );
-
-        long bookmarkCount =
-                bookmarkRepository.countByLaboratory_Id(
-                        laboratory.getId()
-                );
-
-        return new MyPageResponse.LaboratorySummary(
-                laboratory.getId().toString(),
-                laboratory.getName(),
-                laboratory.getWebsiteUrl(),
-                new MyPageResponse.CollegeSummary(
-                        college.getId().toString(),
-                        college.getName()
-                ),
-                new MyPageResponse.DepartmentSummary(
-                        department.getId().toString(),
-                        department.getName()
-                ),
-                new MyPageResponse.ProfessorSummary(
-                        professor.getId().toString(),
-                        professor.getName()
-                ),
-                researchFields,
-                laboratory.getRecruitmentStatus().name(),
-                bookmarkCount,
-                true
-        );
-    }
-
     private record CursorValue(
             LocalDateTime createdAt,
             Long laboratoryId
     ) {
-    }
-
-    @Transactional(readOnly = true)
-    public BookmarkedLaboratoriesResponse getBookmarkedLaboratories(
-            Long userId,
-            String cursor,
-            int size
-    ) {
-        if (size < 1 || size > 50) {
-            throw new IllegalArgumentException("INVALID_SIZE");
-        }
-
-        CursorValue cursorValue = decodeCursor(cursor);
-
-        System.out.println("=== CURSOR ===");
-        System.out.println("cursor time = " + cursorValue.createdAt());
-        System.out.println("cursor labId = " + cursorValue.laboratoryId());
-
-        List<Bookmark> results =
-                bookmarkRepository.findBookmarkedLaboratories(
-                        userId,
-                        cursorValue.createdAt(),
-                        cursorValue.laboratoryId(),
-                        PageRequest.of(0, size + 1)
-                );
-
-        System.out.println("=== QUERY RESULTS ===");
-        results.forEach(bookmark ->
-                System.out.println(
-                        "result time = " + bookmark.getCreatedAt()
-                                + " / labId = " + bookmark.getLaboratory().getId()
-                )
-        );
-
-        boolean hasNext = results.size() > size;
-
-        List<Bookmark> pageItems = hasNext
-                ? results.subList(0, size)
-                : results;
-
-        List<Long> laboratoryIds = pageItems.stream()
-                .map(bookmark -> bookmark.getLaboratory().getId())
-                .toList();
-
-        Map<Long, List<String>> researchFieldsByLaboratoryId =
-                laboratoryIds.isEmpty()
-                        ? Map.of()
-                        : laboratoryResearchFieldRepository
-                        .findFieldsByLaboratoryIds(laboratoryIds)
-                        .stream()
-                        .collect(Collectors.groupingBy(
-                                LaboratoryResearchFieldProjection::getLaboratoryId,
-                                Collectors.mapping(
-                                        LaboratoryResearchFieldProjection::getName,
-                                        Collectors.toList()
-                                )
-                        ));
-
-        List<MyPageResponse.BookmarkedLaboratory> items =
-                pageItems.stream()
-                        .map(bookmark ->
-                                toBookmarkedLaboratory(
-                                        bookmark,
-                                        researchFieldsByLaboratoryId
-                                )
-                        )
-                        .toList();
-
-        String nextCursor = hasNext && !pageItems.isEmpty()
-                ? encodeCursor(pageItems.getLast())
-                : null;
-
-        return new BookmarkedLaboratoriesResponse(
-                items,
-                nextCursor,
-                hasNext
-        );
-    }
-
-    @Transactional
-    public void remove(Long userId, Long laboratoryId) {
-        laboratoryRepository.findByIdAndDeletedAtIsNull(laboratoryId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("LABORATORY_NOT_FOUND"));
-
-        BookmarkId bookmarkId =
-                new BookmarkId(userId, laboratoryId);
-
-        if (!bookmarkRepository.existsById(bookmarkId)) {
-            return;
-        }
-
-        bookmarkRepository.deleteById(bookmarkId);
     }
 }

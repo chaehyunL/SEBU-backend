@@ -10,6 +10,7 @@ import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.department.repository.DepartmentRepository;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.service.LaboratoryManagementService;
 import com.sebu.backend.professor.domain.Professor;
@@ -61,7 +62,7 @@ public class BookmarkServiceTest {
 
         assertThat(laboratory.isDeleted()).isTrue();
         assertThatThrownBy(() -> bookmarkService.add(user.getId(), laboratory.getId()))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(LaboratoryNotFoundException.class)
                 .hasMessage("LABORATORY_NOT_FOUND");
     }
 

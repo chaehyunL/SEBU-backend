@@ -3,15 +3,19 @@ package com.sebu.backend.bookmark.service;
 import com.sebu.backend.bookmark.domain.Bookmark;
 import com.sebu.backend.bookmark.domain.BookmarkId;
 import com.sebu.backend.bookmark.dto.BookmarkedLaboratoriesResponse;
+import com.sebu.backend.bookmark.exception.InvalidCursorException;
+import com.sebu.backend.bookmark.exception.InvalidSizeException;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult;
+import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
 import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
 import com.sebu.backend.user.domain.AppUser;
+import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -38,13 +42,11 @@ public class BookmarkService {
     @Transactional
     public void add(Long userId, Long laboratoryId) {
         AppUser user = appUserRepository.findById(userId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("USER_NOT_FOUND"));
+                .orElseThrow(UserNotFoundException::new);
 
         Laboratory laboratory = laboratoryRepository
                 .findByIdAndDeletedAtIsNull(laboratoryId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("LABORATORY_NOT_FOUND"));
+                .orElseThrow(LaboratoryNotFoundException::new);
 
         BookmarkId bookmarkId =
                 new BookmarkId(userId, laboratoryId);
@@ -65,7 +67,7 @@ public class BookmarkService {
             int size
     ) {
         if (size < 1 || size > 50) {
-            throw new IllegalArgumentException("INVALID_SIZE");
+            throw new InvalidSizeException();
         }
 
         CursorValue cursorValue = decodeCursor(cursor);
@@ -125,10 +127,7 @@ public class BookmarkService {
     public void remove(Long userId, Long laboratoryId) {
         laboratoryRepository
                 .findByIdAndDeletedAtIsNull(laboratoryId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "LABORATORY_NOT_FOUND"
-                        ));
+                .orElseThrow(LaboratoryNotFoundException::new);
 
         BookmarkId bookmarkId =
                 new BookmarkId(userId, laboratoryId);
@@ -258,9 +257,7 @@ public class BookmarkService {
             String[] parts = decoded.split("\\|");
 
             if (parts.length != 2) {
-                throw new IllegalArgumentException(
-                        "INVALID_CURSOR"
-                );
+                throw new InvalidCursorException();
             }
 
             return new CursorValue(
@@ -268,10 +265,10 @@ public class BookmarkService {
                     Long.parseLong(parts[1])
             );
 
-        } catch (Exception exception) {
-            throw new IllegalArgumentException(
-                    "INVALID_CURSOR"
-            );
+        } catch (InvalidCursorException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new InvalidCursorException();
         }
     }
 

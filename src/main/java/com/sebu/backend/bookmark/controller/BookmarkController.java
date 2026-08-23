@@ -1,5 +1,6 @@
 package com.sebu.backend.bookmark.controller;
 
+import com.sebu.backend.auth.exception.AccessTokenInvalidException;
 import com.sebu.backend.bookmark.dto.BookmarkedLaboratoriesResponse;
 import com.sebu.backend.bookmark.service.BookmarkService;
 import com.sebu.backend.global.auth.CurrentUserProvider;
@@ -27,11 +28,14 @@ public class BookmarkController {
             @RequestParam(defaultValue = "20") int size
     ) {
         Long userId = currentUserProvider.currentUserId()
-                .orElseThrow(() ->
-                        new IllegalArgumentException("AUTHENTICATION_REQUIRED"));
+                .orElseThrow(AccessTokenInvalidException::new);
 
         BookmarkedLaboratoriesResponse response =
-                bookmarkService.getBookmarkedLaboratories(userId, cursor, size);
+                bookmarkService.getBookmarkedLaboratories(
+                        userId,
+                        cursor,
+                        size
+                );
 
         return ResponseEntity.ok()
                 .header("Cache-Control", "private, no-store")
@@ -43,8 +47,7 @@ public class BookmarkController {
             @PathVariable Long laboratoryId
     ) {
         Long userId = currentUserProvider.currentUserId()
-                .orElseThrow(() ->
-                        new IllegalArgumentException("AUTHENTICATION_REQUIRED"));
+                .orElseThrow(AccessTokenInvalidException::new);
 
         bookmarkService.add(userId, laboratoryId);
 
@@ -56,8 +59,7 @@ public class BookmarkController {
             @PathVariable Long laboratoryId
     ) {
         Long userId = currentUserProvider.currentUserId()
-                .orElseThrow(() ->
-                        new IllegalArgumentException("AUTHENTICATION_REQUIRED"));
+                .orElseThrow(AccessTokenInvalidException::new);
 
         bookmarkService.remove(userId, laboratoryId);
 

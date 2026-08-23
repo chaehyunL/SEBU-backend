@@ -10,6 +10,7 @@ import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import com.sebu.backend.mypage.dto.MyPageResponse;
 import com.sebu.backend.professor.domain.Professor;
 import com.sebu.backend.user.domain.AppUser;
+import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,8 +32,7 @@ public class MyPageService {
     public MyPageResponse getMyPage(Long userId) {
 
         AppUser user = appUserRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("USER_NOT_FOUND"));
-
+                .orElseThrow(UserNotFoundException::new);
         long bookmarkedLaboratoryCount =
                 bookmarkRepository.countByUser_Id(userId);
 

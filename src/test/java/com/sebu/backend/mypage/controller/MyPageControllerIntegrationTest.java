@@ -379,4 +379,102 @@ public class MyPageControllerIntegrationTest {
         assertThat(savedUser.getIntroduction()).isEmpty();
         assertThat(savedUser.getProfileUpdatedAt()).isNull();
     }
+
+    @Test
+    void 북마크_목록_조회시_size가_유효하지_않으면_400을_반환한다() throws Exception {
+        AppUser user = appUserRepository.save(
+                new AppUser("invalid-size@example.com")
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/users/me/bookmarked-laboratories")
+                                .with(jwt().jwt(jwt -> jwt
+                                        .subject(user.getId().toString())
+                                        .claim("role", "USER")
+                                ))
+                                .param("size", "51")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("INVALID_SIZE"));
+    }
+
+    @Test
+    void 북마크_목록_조회시_cursor가_유효하지_않으면_400을_반환한다() throws Exception {
+        AppUser user = appUserRepository.save(
+                new AppUser("invalid-cursor@example.com")
+        );
+
+        mockMvc.perform(
+                        get("/api/v1/users/me/bookmarked-laboratories")
+                                .with(jwt().jwt(jwt -> jwt
+                                        .subject(user.getId().toString())
+                                        .claim("role", "USER")
+                                ))
+                                .param("cursor", "invalid-cursor")
+                )
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("INVALID_CURSOR"));
+    }
+    @Test
+    void 인증되지_않은_사용자는_북마크_목록을_조회할_수_없다() throws Exception {
+        mockMvc.perform(
+                        get("/api/v1/users/me/bookmarked-laboratories")
+                )
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code")
+                        .value("ACCESS_TOKEN_INVALID"));
+    }
+
+    @Test
+    void 존재하지_않는_연구실을_북마크하면_404를_반환한다() throws Exception {
+        AppUser user = appUserRepository.save(
+                new AppUser("lab-not-found@example.com")
+        );
+
+        mockMvc.perform(
+                        put("/api/v1/laboratories/{laboratoryId}/bookmark", 999999L)
+                                .with(jwt().jwt(jwt -> jwt
+                                        .subject(user.getId().toString())
+                                        .claim("role", "USER")
+                                ))
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code")
+                        .value("LABORATORY_NOT_FOUND"));
+    }
+
+    @Test
+    void 존재하지_않는_전공으로_프로필을_수정하면_404를_반환한다() throws Exception {
+        AppUser user = appUserRepository.save(
+                new AppUser("major-not-found@example.com")
+        );
+
+        String requestBody = """
+            {
+              "name": "홍길동",
+              "grade": 3,
+              "majorId": "999999",
+              "gpaBand": "GTE_3_5",
+              "introduction": "머신러닝에 관심이 있습니다."
+            }
+            """;
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/profile")
+                                .with(jwt().jwt(jwt -> jwt
+                                        .subject(user.getId().toString())
+                                        .claim("role", "USER")
+                                ))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(requestBody)
+                )
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code")
+                        .value("MAJOR_NOT_FOUND"));
+    }
 }

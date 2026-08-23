@@ -4,10 +4,12 @@ import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.department.repository.DepartmentRepository;
 import com.sebu.backend.mypage.dto.ProfileResponse;
 import com.sebu.backend.mypage.dto.ProfileUpdateRequest;
+import com.sebu.backend.mypage.exception.MajorNotFoundException;
 import com.sebu.backend.mypage.moderation.IntroductionModerationException;
 import com.sebu.backend.mypage.moderation.IntroductionModerator;
 import com.sebu.backend.mypage.moderation.ModerationResult;
 import com.sebu.backend.user.domain.AppUser;
+import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,8 +31,7 @@ public class ProfileService {
             ProfileUpdateRequest request
     ) {
         AppUser user = appUserRepository.findById(userId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("USER_NOT_FOUND"));
+                .orElseThrow(UserNotFoundException::new);
 
         Long majorId;
 
@@ -41,8 +42,7 @@ public class ProfileService {
         }
 
         Department major = departmentRepository.findById(majorId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("MAJOR_NOT_FOUND"));
+                .orElseThrow(MajorNotFoundException::new);
 
         ModerationResult moderationResult =
                 introductionModerator.moderate(request.introduction());

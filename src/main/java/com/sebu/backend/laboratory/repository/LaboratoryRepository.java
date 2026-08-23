@@ -1,7 +1,9 @@
 package com.sebu.backend.laboratory.repository;
 
 import com.sebu.backend.laboratory.domain.Laboratory;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,6 +20,10 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     );
 
     Optional<Laboratory> findByIdAndDeletedAtIsNull(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select laboratory from Laboratory laboratory where laboratory.id = :laboratoryId")
+    Optional<Laboratory> findByIdForUpdate(@Param("laboratoryId") Long laboratoryId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """

@@ -43,6 +43,9 @@ class CrawlingSchemaIntegrationTest {
         assertThat(applicationContext.getBeansOfType(
             com.sebu.backend.crawling.runner.ProfessorCrawlerRunner.class
         )).isEmpty();
+        assertThat(applicationContext.getBeansOfType(
+            com.sebu.backend.promotion.runner.ProfessorCandidatePromotionRunner.class
+        )).isEmpty();
     }
 
     @Test

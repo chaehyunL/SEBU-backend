@@ -9,7 +9,7 @@ public class SebuBackendApplication {
 
 	public static void main(String[] args) {
 		ConfigurableApplicationContext context = SpringApplication.run(SebuBackendApplication.class, args);
-		if (context.getEnvironment().matchesProfiles("crawler")) {
+		if (context.getEnvironment().matchesProfiles("crawler | promotion")) {
 			context.close();
 		}
 	}

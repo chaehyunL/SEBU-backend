@@ -75,9 +75,21 @@ class DatabaseConstraintsIntegrationTest {
         Hierarchy h = hierarchy("제약대학", "제약학과", "제약교수", null);
 
         assertThatThrownBy(() -> jdbcTemplate.update("""
-            INSERT INTO laboratory (professor_id, department_id, name, recruitment_status)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO laboratory (
+                professor_id, department_id, name, name_source, recruitment_status
+            ) VALUES (?, ?, ?, 'OFFICIAL', ?)
             """, h.professor.getId(), h.department.getId(), "잘못된 모집상태 연구실", "UNDEFINED"))
+            .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void laboratoryNameSourceMustBeExplicitInDirectSql() {
+        Hierarchy h = hierarchy("출처제약대학", "출처제약학과", "출처제약교수", null);
+
+        assertThatThrownBy(() -> jdbcTemplate.update("""
+            INSERT INTO laboratory (professor_id, department_id, name, recruitment_status)
+            VALUES (?, ?, ?, 'UNKNOWN')
+            """, h.professor.getId(), h.department.getId(), "출처 없는 연구실"))
             .isInstanceOf(DataIntegrityViolationException.class);
     }
 

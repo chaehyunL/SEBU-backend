@@ -1,6 +1,7 @@
 package com.sebu.backend.laboratory.dto;
 
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.laboratory.domain.LaboratoryNameSource;
 
 import java.util.List;
 
@@ -8,6 +9,7 @@ public record LaboratoriesResult(List<LaboratoryResult> laboratories) {
     public record LaboratoryResult(
         Long id,
         String name,
+        LaboratoryNameSource nameSource,
         String websiteUrl,
         ProfessorResult professor,
         CollegeResult college,

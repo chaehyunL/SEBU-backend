@@ -57,6 +57,7 @@ public class LaboratoryQueryService {
         return new LaboratoryResult(
             summary.getId(),
             summary.getName(),
+            summary.getNameSource(),
             summary.getWebsiteUrl(),
             new ProfessorResult(summary.getProfessorId(), summary.getProfessorName(), summary.getProfessorEmail()),
             new CollegeResult(summary.getCollegeId(), summary.getCollegeName()),

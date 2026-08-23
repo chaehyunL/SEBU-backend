@@ -28,7 +28,7 @@ class CrawlingDomainTest {
     }
 
     @Test
-    void candidateWithoutLaboratoryNameCannotBeApproved() {
+    void candidateWithoutLaboratoryNameCanBeApprovedForGeneratedNaming() {
         ProfessorCrawlCandidate candidate = candidate(new ProfessorCrawlData(
             "홍길동",
             "교수",
@@ -38,11 +38,11 @@ class CrawlingDomainTest {
             "https://example.com/lab"
         ));
 
-        assertThatThrownBy(() -> candidate.approve("developer", null, REVIEWED_AT))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessage("LABORATORY_NAME_REQUIRED_FOR_APPROVAL");
+        candidate.approve("developer", null, REVIEWED_AT);
 
-        assertThat(candidate.getReviewStatus()).isEqualTo(CandidateReviewStatus.PENDING);
+        assertThat(candidate.getReviewStatus()).isEqualTo(CandidateReviewStatus.APPROVED);
+        assertThat(candidate.getLaboratoryName()).isNull();
+        assertThat(candidate.needsPromotion()).isTrue();
     }
 
     @Test

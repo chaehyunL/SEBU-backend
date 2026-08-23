@@ -23,10 +23,6 @@ public record ProfessorCrawlData(
         homepageUrl = normalizeNullable(homepageUrl);
     }
 
-    public boolean isReadyForApproval() {
-        return laboratoryName != null;
-    }
-
     public String identityKey() {
         if (email != null) {
             return "email:" + email;

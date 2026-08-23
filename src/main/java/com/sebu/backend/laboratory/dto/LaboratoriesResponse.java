@@ -2,6 +2,7 @@ package com.sebu.backend.laboratory.dto;
 
 import com.sebu.backend.laboratory.dto.LaboratoriesResult;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.laboratory.domain.LaboratoryNameSource;
 
 import java.util.List;
 
@@ -16,6 +17,7 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
     public record LaboratoryResponse(
         Long id,
         String name,
+        LaboratoryNameSource nameSource,
         String websiteUrl,
         ProfessorResponse professor,
         CollegeResponse college,
@@ -29,6 +31,7 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
             return new LaboratoryResponse(
                 result.id(),
                 result.name(),
+                result.nameSource(),
                 result.websiteUrl(),
                 new ProfessorResponse(result.professor().id(), result.professor().name(), result.professor().email()),
                 new CollegeResponse(result.college().id(), result.college().name()),

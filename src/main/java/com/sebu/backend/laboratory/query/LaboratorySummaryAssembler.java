@@ -16,6 +16,7 @@ public class LaboratorySummaryAssembler {
         return new LaboratoriesResult.LaboratoryResult(
                 projection.getId(),
                 projection.getName(),
+                projection.getNameSource(),
                 projection.getWebsiteUrl(),
 
                 new LaboratoriesResult.ProfessorResult(

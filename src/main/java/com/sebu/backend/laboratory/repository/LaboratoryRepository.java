@@ -19,6 +19,12 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
             String name
     );
 
+    boolean existsByDepartmentIdAndNameAndDeletedAtIsNullAndIdNot(
+            Long departmentId,
+            String name,
+            Long id
+    );
+
     Optional<Laboratory> findByIdAndDeletedAtIsNull(Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -38,6 +44,7 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     @Query("""
         select l.id as id,
                l.name as name,
+               l.nameSource as nameSource,
                l.websiteUrl as websiteUrl,
                p.id as professorId,
                p.name as professorName,
@@ -59,7 +66,7 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
             on b.laboratory = l
             and b.user.deletedAt is null
         where l.deletedAt is null
-        group by l.id, l.name, l.websiteUrl,
+        group by l.id, l.name, l.nameSource, l.websiteUrl,
                  p.id, p.name, p.email,
                  c.id, c.name,
                  d.id, d.name,
@@ -73,6 +80,7 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     @Query("""
         select l.id as id,
                l.name as name,
+               l.nameSource as nameSource,
                l.websiteUrl as websiteUrl,
                p.id as professorId,
                p.name as professorName,
@@ -95,7 +103,7 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
             and b.user.deletedAt is null
         where l.deletedAt is null
           and l.id in :laboratoryIds
-        group by l.id, l.name, l.websiteUrl,
+        group by l.id, l.name, l.nameSource, l.websiteUrl,
                  p.id, p.name, p.email,
                  c.id, c.name,
                  d.id, d.name,

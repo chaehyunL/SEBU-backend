@@ -71,6 +71,20 @@ Windows에서는 저장소 루트에서 다음 명령을 실행합니다.
 
 Docker Compose로 Java 21 빌드와 백엔드 실행을 한 번에 처리할 수 있습니다.
 
+인증 기능을 초기화하려면 32바이트 이상의 랜덤 키를 Base64로 인코딩한
+`JWT_SECRET_BASE64` 환경 변수가 필요합니다. PowerShell에서는 다음과 같이 생성합니다.
+
+```powershell
+$secretBytes = New-Object byte[] 32
+$random = [Security.Cryptography.RandomNumberGenerator]::Create()
+$random.GetBytes($secretBytes)
+$random.Dispose()
+$env:JWT_SECRET_BASE64 = [Convert]::ToBase64String($secretBytes)
+```
+
+환경 변수 대신 `.env.example`을 `.env`로 복사한 다음 `JWT_SECRET_BASE64` 값을 채워도 됩니다.
+`.env` 파일은 Git에서 제외되며 비밀키를 저장소에 커밋하지 않습니다.
+
 ```powershell
 docker compose up --build -d
 docker compose ps

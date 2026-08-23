@@ -8,6 +8,8 @@ erDiagram
     DEPARTMENT ||--o{ CRAWL_SOURCE : provides
     PROFESSOR ||--o{ LABORATORY : leads
     CRAWL_SOURCE ||--o{ PROFESSOR_CRAWL_CANDIDATE : produces
+    PROFESSOR_CRAWL_CANDIDATE o|--o| PROFESSOR : promotes_to
+    PROFESSOR_CRAWL_CANDIDATE o|--o| LABORATORY : promotes_to
     LABORATORY ||--o{ LABORATORY_RESEARCH_FIELD : has
     RESEARCH_FIELD ||--o{ LABORATORY_RESEARCH_FIELD : classifies
     DEPARTMENT o|--o{ APP_USER : majors_in
@@ -29,6 +31,9 @@ erDiagram
 - 후보의 우선 식별키는 이메일, 홈페이지, 정규화한 이름 순서로 만든다. 재크롤링에서는 이메일·홈페이지·고유한 이름을 별칭으로 비교해 연락처가 일시 누락되어도 기존 후보를 이어 간다.
 - `(source_id, source_identity_key)` 유니크 제약으로 원본 사이트의 완전 중복은 합치되, 같은 이름이고 이메일 또는 홈페이지가 다른 실제 동명이인은 각각 보존한다. 안정적인 식별 정보가 전혀 없는 동명이인은 자동 병합하지 않고 충돌로 처리한다.
 - 크롤링과 검수가 동시에 같은 행을 수정하면 조용히 덮어쓰지 않도록 출처와 후보에 낙관적 잠금 버전을 둔다.
+- 승인된 현재 후보만 교수와 연구실로 승격한다. 후보에는 승격된 본 테이블 ID, 승격 시각, 승격에 사용한 검수 시각을 기록하여 재실행 중복을 막는다.
+- 공식 연구실 이름은 `name_source = OFFICIAL`, 이름이 없어 `교수명 + 교수님 연구실`로 만든 값은 `name_source = GENERATED`로 구분한다.
+- 후보 승격은 후보와 학과 행을 잠근 뒤 교수·연구실·승격 이력을 한 트랜잭션으로 저장한다. 재검수한 새 승인본만 기존 연결 데이터를 갱신하며 모집 상태 같은 수기 관리 값은 보존한다.
 - 사용자의 이름, 학년, 전공, GPA 구간, 자기소개는 `app_user`에서 관리한다. 로그인 직후 프로필이 미완성일 수 있으므로 필수 입력값도 DB에서는 `NULL`을 허용한다.
 - 사용자의 전공은 `major_department_id`로 기존 학과를 참조하며 단과대 컬럼을 중복 저장하지 않는다.
 - GPA 구간은 `GTE_3_0`, `GTE_3_5`, `GTE_4_0`만 허용하고, 미선택 상태는 `NULL`로 표현한다.

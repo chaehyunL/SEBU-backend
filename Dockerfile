@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk-jammy AS builder
 
 WORKDIR /workspace
 
@@ -15,13 +15,15 @@ RUN ./gradlew bootJar --no-daemon \
         -exec cp {} /workspace/app.jar \; \
     && test -s /workspace/app.jar
 
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-jammy AS runtime
 
 WORKDIR /app
 
-RUN apk add --no-cache curl \
-    && addgroup -S app \
-    && adduser -S app -G app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system app \
+    && useradd --system --gid app --no-create-home app
 
 COPY --from=builder --chown=app:app /workspace/app.jar /app/app.jar
 

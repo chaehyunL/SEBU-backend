@@ -28,6 +28,7 @@ dependencies {
 
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.jsoup:jsoup:1.23.1'
+	implementation 'org.conscrypt:conscrypt-openjdk-uber:2.6.1'
 	implementation 'com.github.ben-manes.caffeine:caffeine'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'

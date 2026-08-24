@@ -60,13 +60,23 @@ public class SecurityConfiguration {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authorize -> authorize
-                .requestMatchers(POST, "/api/v1/auth/sejong/login", "/api/v1/auth/refresh", "/api/v1/auth/logout")
-                    .permitAll()
-                .requestMatchers(GET, "/api/v1/laboratories").permitAll()
-                .requestMatchers(GET, "/api/v1/me").authenticated()
-                .anyRequest().authenticated()
-            )
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                POST,
+                                "/api/v1/auth/sejong/login",
+                                "/api/v1/auth/refresh",
+                                "/api/v1/auth/logout"
+                        ).permitAll()
+
+                        .requestMatchers(GET, "/api/v1/laboratories").permitAll()
+                        .requestMatchers(GET, "/api/v1/me").authenticated()
+                        .anyRequest().authenticated()
+                )
             .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))
             .oauth2ResourceServer(resourceServer -> resourceServer
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))

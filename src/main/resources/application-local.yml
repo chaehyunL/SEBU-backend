@@ -25,3 +25,8 @@ app:
     cookie:
       secure: false
 
+    token:
+      jwt-secret-base64: ${JWT_SECRET_BASE64}
+      access-token-expiration: 30m
+      refresh-token-expiration: 14d
+

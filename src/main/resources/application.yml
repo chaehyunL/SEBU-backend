@@ -16,6 +16,9 @@ app:
       secure: true
     sejong:
       portal-login-url: https://portal.sejong.ac.kr/jsp/login/login_action.jsp
+      portal-login-page-url: "https://portal.sejong.ac.kr/jsp/login/loginSSL.jsp?rtUrl=portal.sejong.ac.kr/comm/member/user/ssoLoginProc.do"
+      portal-return-url: portal.sejong.ac.kr/comm/member/user/ssoLoginProc.do
+      portal-sso-login-url: https://portal.sejong.ac.kr/comm/member/user/ssoLoginProc.do
       sso-login-url: https://sjpt.sejong.ac.kr/main/view/Login/doSsoLogin.do
       user-info-url: https://sjpt.sejong.ac.kr/main/sys/UserInfo/initUserInfo.do
       connect-timeout: 5s

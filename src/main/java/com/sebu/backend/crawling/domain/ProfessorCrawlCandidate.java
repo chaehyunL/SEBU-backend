@@ -14,7 +14,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
@@ -33,14 +32,6 @@ import java.util.Objects;
         @UniqueConstraint(
             name = "uk_professor_crawl_candidate_source_identity",
             columnNames = {"source_id", "source_identity_key"}
-        ),
-        @UniqueConstraint(
-            name = "uk_professor_crawl_candidate_promoted_professor",
-            columnNames = "promoted_professor_id"
-        ),
-        @UniqueConstraint(
-            name = "uk_professor_crawl_candidate_promoted_laboratory",
-            columnNames = "promoted_laboratory_id"
         )
     },
     indexes = {
@@ -57,6 +48,14 @@ import java.util.Objects;
         @Index(
             name = "idx_professor_crawl_candidate_promotion",
             columnList = "source_id, review_status, is_stale, id"
+        ),
+        @Index(
+            name = "idx_professor_crawl_candidate_promoted_professor",
+            columnList = "promoted_professor_id"
+        ),
+        @Index(
+            name = "idx_professor_crawl_candidate_promoted_laboratory",
+            columnList = "promoted_laboratory_id"
         )
     }
 )
@@ -121,11 +120,11 @@ public class ProfessorCrawlCandidate extends BaseTimeEntity {
     @Column(name = "review_revision", nullable = false)
     private long reviewRevision;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promoted_professor_id")
     private Professor promotedProfessor;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "promoted_laboratory_id")
     private Laboratory promotedLaboratory;
 

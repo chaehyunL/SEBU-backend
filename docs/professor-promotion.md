@@ -10,8 +10,8 @@ crawl_source
 professor_crawl_candidate
     ↓ APPROVED + is_stale = FALSE
 promotion 일회성 실행
-    ├─ professor
-    └─ laboratory
+    ├─ professor ─ professor_department
+    └─ laboratory ─ laboratory_department
 ```
 
 승격 기능은 일반 서버 실행에서는 동작하지 않습니다. `promotion` 프로필과
@@ -39,6 +39,17 @@ promotion 일회성 실행
 재크롤링 후 다시 검수하여 승인한 후보는 같은 교수와 연구실을 갱신합니다.
 이때 모집 상태처럼 이후 사람이 관리하는 값은 덮어쓰지 않습니다. 같은 승인본을
 다시 실행해도 본 데이터가 중복 생성되지 않습니다.
+
+이메일이 같은 후보는 교수 이름까지 같을 때 하나의 `professor`와 `laboratory`를
+공유합니다. 각 학과 소속은 `professor_department`와 `laboratory_department`에 따로
+저장하므로 겸임 교수도 후보를 버리지 않고 모두 승격할 수 있습니다. 대표 학과는 기존
+`professor.department_id`, `laboratory.department_id`에 유지하고, 학과별 직위는
+`professor_department.position`에 기록합니다. 이메일이 없으면 서로 다른 출처의
+후보를 자동으로 합치지 않습니다.
+
+같은 이메일인데 교수 이름이 다르거나, 서로 다른 공식 연구실 정보가 충돌하면 자동으로
+덮어쓰지 않고 해당 후보만 실패 처리합니다. `GENERATED` 연구실과 `OFFICIAL` 연구실이
+만나면 공식 이름을 우선합니다.
 
 이미 승격된 후보가 이후 페이지에서 사라지거나 재검수에서 거절되더라도 본 데이터를
 자동 삭제하지 않습니다. 본 데이터 삭제는 별도의 운영 판단으로 처리합니다.
@@ -120,8 +131,8 @@ ORDER BY source_id, id;
 .\gradlew.bat bootRun --args="--spring.profiles.active=prod,promotion --app.candidate-promotion.enabled=true --app.candidate-promotion.source-id=<출처_ID>"
 ```
 
-`<출처_ID>`는 실제 `crawl_source.id` 숫자로 바꿉니다. 실행 전에 Flyway가 V15를
-적용하여 `laboratory.name_source`와 후보 승격 이력 컬럼을 만듭니다.
+`<출처_ID>`는 실제 `crawl_source.id` 숫자로 바꿉니다. 실행 전에 Flyway가 V16까지
+적용하여 승격 이력과 다학과 소속 관계 테이블을 준비합니다.
 
 ## 승인 후보 전체 실행
 
@@ -150,10 +161,20 @@ SELECT c.id AS candidate_id,
        l.id AS laboratory_id,
        l.name AS laboratory_name,
        l.name_source,
-       l.recruitment_status
+       l.recruitment_status,
+       pd.department_id AS professor_department_id,
+       pd.position AS department_position,
+       ld.department_id AS laboratory_department_id
 FROM professor_crawl_candidate c
+JOIN crawl_source s ON s.id = c.source_id
 LEFT JOIN professor p ON p.id = c.promoted_professor_id
 LEFT JOIN laboratory l ON l.id = c.promoted_laboratory_id
+LEFT JOIN professor_department pd
+       ON pd.professor_id = p.id
+      AND pd.department_id = s.department_id
+LEFT JOIN laboratory_department ld
+       ON ld.laboratory_id = l.id
+      AND ld.department_id = s.department_id
 WHERE c.source_id = <출처_ID>
 ORDER BY c.id;
 ```

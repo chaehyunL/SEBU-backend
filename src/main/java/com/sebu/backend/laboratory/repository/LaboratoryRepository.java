@@ -31,6 +31,18 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     @Query("select laboratory from Laboratory laboratory where laboratory.id = :laboratoryId")
     Optional<Laboratory> findByIdForUpdate(@Param("laboratoryId") Long laboratoryId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select laboratory
+        from Laboratory laboratory
+        where laboratory.professor.id = :professorId
+          and laboratory.deletedAt is null
+        order by laboratory.id
+        """)
+    List<Laboratory> findActiveByProfessorIdForUpdate(
+        @Param("professorId") Long professorId
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
         DELETE FROM laboratory

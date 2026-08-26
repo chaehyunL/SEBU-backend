@@ -57,6 +57,23 @@ public class Professor extends BaseTimeEntity {
             && Objects.equals(this.email, normalizeEmail(email));
     }
 
+    public boolean hasPromotionIdentity(String name, String email) {
+        return Objects.equals(this.name, requireText(name, "PROFESSOR_NAME_REQUIRED"))
+            && Objects.equals(this.email, normalizeEmail(email));
+    }
+
+    public boolean mergePromotionPosition(String position) {
+        String normalizedPosition = normalizeNullable(position);
+        if (normalizedPosition == null || Objects.equals(this.position, normalizedPosition)) {
+            return false;
+        }
+        if (this.position != null) {
+            throw new IllegalStateException("PROFESSOR_PROFILE_CONFLICT");
+        }
+        this.position = normalizedPosition;
+        return true;
+    }
+
     public void updateFromPromotion(String name, String position, String email) {
         this.name = requireText(name, "PROFESSOR_NAME_REQUIRED");
         this.position = normalizeNullable(position);

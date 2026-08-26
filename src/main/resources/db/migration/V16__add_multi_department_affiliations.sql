@@ -44,7 +44,23 @@ CREATE INDEX idx_professor_crawl_candidate_promoted_laboratory
     ON professor_crawl_candidate (promoted_laboratory_id);
 
 ALTER TABLE professor_crawl_candidate
+    DROP CONSTRAINT fk_professor_crawl_candidate_promoted_professor;
+
+ALTER TABLE professor_crawl_candidate
+    DROP CONSTRAINT fk_professor_crawl_candidate_promoted_laboratory;
+
+ALTER TABLE professor_crawl_candidate
     DROP CONSTRAINT uk_professor_crawl_candidate_promoted_professor;
 
 ALTER TABLE professor_crawl_candidate
     DROP CONSTRAINT uk_professor_crawl_candidate_promoted_laboratory;
+
+ALTER TABLE professor_crawl_candidate
+    ADD CONSTRAINT fk_professor_crawl_candidate_promoted_professor
+        FOREIGN KEY (promoted_professor_id)
+        REFERENCES professor (id) ON DELETE RESTRICT;
+
+ALTER TABLE professor_crawl_candidate
+    ADD CONSTRAINT fk_professor_crawl_candidate_promoted_laboratory
+        FOREIGN KEY (promoted_laboratory_id)
+        REFERENCES laboratory (id) ON DELETE SET NULL;

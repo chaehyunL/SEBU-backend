@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
+
 public interface LaboratoryDepartmentRepository
     extends JpaRepository<LaboratoryDepartment, LaboratoryDepartmentId> {
 
@@ -24,5 +27,24 @@ public interface LaboratoryDepartmentRepository
         @Param("departmentId") Long departmentId,
         @Param("name") String name,
         @Param("excludedLaboratoryId") Long excludedLaboratoryId
+    );
+
+    @Query("""
+        select laboratory.id as laboratoryId,
+               college.id as collegeId,
+               college.name as collegeName,
+               department.id as departmentId,
+               department.name as departmentName
+        from LaboratoryDepartment affiliation
+        join affiliation.laboratory laboratory
+        join affiliation.department department
+        join department.college college
+        where laboratory.id in :laboratoryIds
+        order by laboratory.id,
+                 case when department.id = laboratory.department.id then 0 else 1 end,
+                 department.id
+        """)
+    List<LaboratoryAffiliationProjection> findAffiliationsByLaboratoryIds(
+        @Param("laboratoryIds") Collection<Long> laboratoryIds
     );
 }

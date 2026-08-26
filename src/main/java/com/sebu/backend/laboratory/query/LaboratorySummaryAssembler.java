@@ -13,6 +13,23 @@ public class LaboratorySummaryAssembler {
             LaboratorySummaryProjection projection,
             List<String> researchFields
     ) {
+        return assemble(
+            projection,
+            researchFields,
+            List.of(primaryAffiliation(projection))
+        );
+    }
+
+    public LaboratoriesResult.LaboratoryResult assemble(
+        LaboratorySummaryProjection projection,
+        List<String> researchFields,
+        List<LaboratoriesResult.AffiliationResult> affiliations
+    ) {
+        List<LaboratoriesResult.AffiliationResult> resolvedAffiliations =
+            affiliations.isEmpty()
+                ? List.of(primaryAffiliation(projection))
+                : List.copyOf(affiliations);
+
         return new LaboratoriesResult.LaboratoryResult(
                 projection.getId(),
                 projection.getName(),
@@ -35,10 +52,26 @@ public class LaboratorySummaryAssembler {
                         projection.getDepartmentName()
                 ),
 
+                resolvedAffiliations,
                 researchFields,
                 projection.getRecruitmentStatus(),
                 projection.getBookmarkCount(),
                 projection.getBookmarked()
+        );
+    }
+
+    private LaboratoriesResult.AffiliationResult primaryAffiliation(
+        LaboratorySummaryProjection projection
+    ) {
+        return new LaboratoriesResult.AffiliationResult(
+            new LaboratoriesResult.CollegeResult(
+                projection.getCollegeId(),
+                projection.getCollegeName()
+            ),
+            new LaboratoriesResult.DepartmentResult(
+                projection.getDepartmentId(),
+                projection.getDepartmentName()
+            )
         );
     }
 }

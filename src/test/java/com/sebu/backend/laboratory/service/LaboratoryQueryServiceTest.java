@@ -3,6 +3,9 @@ package com.sebu.backend.laboratory.service;
 import com.sebu.backend.global.auth.CurrentUserProvider;
 import com.sebu.backend.laboratory.domain.LaboratoryNameSource;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
+import com.sebu.backend.laboratory.repository.LaboratoryAffiliationProjection;
+import com.sebu.backend.laboratory.repository.LaboratoryDepartmentRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
@@ -10,18 +13,23 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class LaboratoryQueryServiceTest {
     @Mock
     LaboratoryRepository laboratoryRepository;
+
+    @Mock
+    LaboratoryDepartmentRepository laboratoryDepartmentRepository;
 
     @Mock
     LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
@@ -31,6 +39,15 @@ class LaboratoryQueryServiceTest {
 
     @Mock
     LaboratorySummaryProjection summary;
+
+    @Mock
+    LaboratoryAffiliationProjection primaryAffiliation;
+
+    @Mock
+    LaboratoryAffiliationProjection secondaryAffiliation;
+
+    @Spy
+    LaboratorySummaryAssembler laboratorySummaryAssembler = new LaboratorySummaryAssembler();
 
     @InjectMocks
     LaboratoryQueryService service;
@@ -53,10 +70,60 @@ class LaboratoryQueryServiceTest {
         when(summary.getBookmarked()).thenReturn(false);
         when(laboratoryResearchFieldRepository.findFieldsByLaboratoryIds(List.of(1L)))
             .thenReturn(List.of());
+        when(laboratoryDepartmentRepository.findAffiliationsByLaboratoryIds(List.of(1L)))
+            .thenReturn(List.of(primaryAffiliation, secondaryAffiliation));
+        mockAffiliation(
+            primaryAffiliation,
+            1L,
+            3L,
+            "인공지능융합대학",
+            4L,
+            "컴퓨터공학과"
+        );
+        mockAffiliation(
+            secondaryAffiliation,
+            1L,
+            3L,
+            "인공지능융합대학",
+            5L,
+            "정보보호학과"
+        );
 
         var laboratory = service.getAll().laboratories().getFirst();
 
         assertThat(laboratory.name()).isEqualTo("김교수 교수님 연구실");
         assertThat(laboratory.nameSource()).isEqualTo(LaboratoryNameSource.GENERATED);
+        assertThat(laboratory.department().name()).isEqualTo("컴퓨터공학과");
+        assertThat(laboratory.affiliations())
+            .extracting(affiliation -> affiliation.department().name())
+            .containsExactly("컴퓨터공학과", "정보보호학과");
+    }
+
+    @Test
+    void skipsBatchQueriesWhenNoLaboratoryExists() {
+        when(currentUserProvider.currentUserId()).thenReturn(Optional.empty());
+        when(laboratoryRepository.findAllSummaries(null)).thenReturn(List.of());
+
+        assertThat(service.getAll().laboratories()).isEmpty();
+
+        verifyNoInteractions(
+            laboratoryResearchFieldRepository,
+            laboratoryDepartmentRepository
+        );
+    }
+
+    private void mockAffiliation(
+        LaboratoryAffiliationProjection affiliation,
+        Long laboratoryId,
+        Long collegeId,
+        String collegeName,
+        Long departmentId,
+        String departmentName
+    ) {
+        when(affiliation.getLaboratoryId()).thenReturn(laboratoryId);
+        when(affiliation.getCollegeId()).thenReturn(collegeId);
+        when(affiliation.getCollegeName()).thenReturn(collegeName);
+        when(affiliation.getDepartmentId()).thenReturn(departmentId);
+        when(affiliation.getDepartmentName()).thenReturn(departmentName);
     }
 }

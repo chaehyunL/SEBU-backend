@@ -46,8 +46,9 @@ class ActiveLaboratoryNameConcurrencyTest {
             start.await();
             try {
                 jdbcTemplate.update("""
-                    INSERT INTO laboratory (professor_id, department_id, name, recruitment_status)
-                    VALUES (?, ?, ?, 'UNKNOWN')
+                    INSERT INTO laboratory (
+                        professor_id, department_id, name, name_source, recruitment_status
+                    ) VALUES (?, ?, ?, 'OFFICIAL', 'UNKNOWN')
                     """, professor.getId(), department.getId(), laboratoryName);
                 return true;
             } catch (DataIntegrityViolationException exception) {

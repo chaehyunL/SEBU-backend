@@ -8,6 +8,8 @@ erDiagram
     DEPARTMENT ||--o{ CRAWL_SOURCE : provides
     PROFESSOR ||--o{ LABORATORY : leads
     CRAWL_SOURCE ||--o{ PROFESSOR_CRAWL_CANDIDATE : produces
+    PROFESSOR_CRAWL_CANDIDATE o|--o| PROFESSOR : promotes_to
+    PROFESSOR_CRAWL_CANDIDATE o|--o| LABORATORY : promotes_to
     LABORATORY ||--o{ LABORATORY_RESEARCH_FIELD : has
     RESEARCH_FIELD ||--o{ LABORATORY_RESEARCH_FIELD : classifies
     DEPARTMENT o|--o{ APP_USER : majors_in
@@ -32,7 +34,12 @@ erDiagram
 - 연구실 분류용 `department`와 세종대 인증 응답의 소속은 용도가 다르다. 연계전공·계열·칼리지까지 연구실 학과에 섞지 않는다.
 - 세종대 인증 소속은 `app_user.sejong_department_name`에 로그인 시점 스냅샷으로 저장하고 재로그인 시 학교 응답명으로 갱신한다.
 - 기존 `major_department_id`는 연구실 도메인의 학과 선택이 필요한 프로필을 위해 유지하며 세종대 인증 소속을 이름만으로 자동 연결하지 않는다.
-- `profile_completed`는 학교가 제공한 이름과 학과명이 반영되었는지를 나타낸다. 사용자 선택값인 nullable 학년은 완료 판정이나 기능 접근 조건으로 사용하지 않는다.
+- `profile_completed`는 학교가 제공한 이름·학과가 반영됐거나 수동 프로필의 이름·학년·전공이 입력됐는지를 나타낸다. 학교 프로필의 nullable 학년은 완료 판정이나 기능 접근 조건으로 사용하지 않는다.
+- 승인된 현재 후보만 교수와 연구실로 승격한다. 후보에는 승격된 본 테이블 ID, 승격 시각, 승격에 사용한 검수 시각을 기록하여 재실행 중복을 막는다.
+- 공식 연구실 이름은 `name_source = OFFICIAL`, 이름이 없어 `교수명 + 교수님 연구실`로 만든 값은 `name_source = GENERATED`로 구분한다.
+- 후보 승격은 후보와 학과 행을 잠근 뒤 교수·연구실·승격 이력을 한 트랜잭션으로 저장한다. 재검수한 새 승인본만 기존 연결 데이터를 갱신하며 모집 상태 같은 수기 관리 값은 보존한다.
+- 사용자의 이름, 학년, 전공, GPA 구간, 자기소개는 `app_user`에서 관리한다. 로그인 직후 프로필이 미완성일 수 있으므로 필수 입력값도 DB에서는 `NULL`을 허용한다.
+- 사용자의 전공은 `major_department_id`로 기존 학과를 참조하며 단과대 컬럼을 중복 저장하지 않는다.
 - GPA 구간은 `GTE_3_0`, `GTE_3_5`, `GTE_4_0`만 허용하고, 미선택 상태는 `NULL`로 표현한다.
 - 자기소개는 최대 500자이며 승인된 내용과 검수 시각·정책·제공자 버전을 같은 트랜잭션에서 저장한다.
 - 회원 탈퇴 상태는 `app_user.deleted_at`으로 기록한다.

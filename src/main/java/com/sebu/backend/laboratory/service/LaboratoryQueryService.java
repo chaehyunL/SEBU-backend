@@ -1,11 +1,12 @@
 package com.sebu.backend.laboratory.service;
 
 import com.sebu.backend.laboratory.dto.LaboratoriesResult;
-import com.sebu.backend.laboratory.dto.LaboratoriesResult.CollegeResult;
-import com.sebu.backend.laboratory.dto.LaboratoriesResult.DepartmentResult;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult.AffiliationResult;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult.LaboratoryResult;
-import com.sebu.backend.laboratory.dto.LaboratoriesResult.ProfessorResult;
 import com.sebu.backend.global.auth.CurrentUserProvider;
+import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
+import com.sebu.backend.laboratory.repository.LaboratoryAffiliationProjection;
+import com.sebu.backend.laboratory.repository.LaboratoryDepartmentRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
@@ -23,8 +24,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LaboratoryQueryService {
     private final LaboratoryRepository laboratoryRepository;
+    private final LaboratoryDepartmentRepository laboratoryDepartmentRepository;
     private final LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final LaboratorySummaryAssembler laboratorySummaryAssembler;
 
     @Transactional(readOnly = true)
     public LaboratoriesResult getAll() {
@@ -35,8 +38,13 @@ public class LaboratoryQueryService {
         }
 
         Map<Long, List<String>> researchFields = findResearchFields(summaries);
+        Map<Long, List<AffiliationResult>> affiliations = findAffiliations(summaries);
         List<LaboratoryResult> laboratories = summaries.stream()
-            .map(summary -> toResult(summary, researchFields.getOrDefault(summary.getId(), List.of())))
+            .map(summary -> laboratorySummaryAssembler.assemble(
+                summary,
+                researchFields.getOrDefault(summary.getId(), List.of()),
+                affiliations.getOrDefault(summary.getId(), List.of())
+            ))
             .toList();
         return new LaboratoriesResult(laboratories);
     }
@@ -53,18 +61,36 @@ public class LaboratoryQueryService {
             ));
     }
 
-    private LaboratoryResult toResult(LaboratorySummaryProjection summary, List<String> researchFields) {
-        return new LaboratoryResult(
-            summary.getId(),
-            summary.getName(),
-            summary.getWebsiteUrl(),
-            new ProfessorResult(summary.getProfessorId(), summary.getProfessorName(), summary.getProfessorEmail()),
-            new CollegeResult(summary.getCollegeId(), summary.getCollegeName()),
-            new DepartmentResult(summary.getDepartmentId(), summary.getDepartmentName()),
-            researchFields,
-            summary.getRecruitmentStatus(),
-            summary.getBookmarkCount(),
-            Boolean.TRUE.equals(summary.getBookmarked())
+    private Map<Long, List<AffiliationResult>> findAffiliations(
+        List<LaboratorySummaryProjection> summaries
+    ) {
+        List<Long> laboratoryIds = summaries.stream()
+            .map(LaboratorySummaryProjection::getId)
+            .distinct()
+            .toList();
+
+        return laboratoryDepartmentRepository
+            .findAffiliationsByLaboratoryIds(laboratoryIds)
+            .stream()
+            .collect(Collectors.groupingBy(
+                LaboratoryAffiliationProjection::getLaboratoryId,
+                LinkedHashMap::new,
+                Collectors.mapping(this::toAffiliationResult, Collectors.toList())
+            ));
+    }
+
+    private AffiliationResult toAffiliationResult(
+        LaboratoryAffiliationProjection affiliation
+    ) {
+        return new AffiliationResult(
+            new LaboratoriesResult.CollegeResult(
+                affiliation.getCollegeId(),
+                affiliation.getCollegeName()
+            ),
+            new LaboratoriesResult.DepartmentResult(
+                affiliation.getDepartmentId(),
+                affiliation.getDepartmentName()
+            )
         );
     }
 }

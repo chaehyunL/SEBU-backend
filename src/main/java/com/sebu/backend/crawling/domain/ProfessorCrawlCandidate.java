@@ -1,6 +1,8 @@
 package com.sebu.backend.crawling.domain;
 
 import com.sebu.backend.global.domain.BaseTimeEntity;
+import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.professor.domain.Professor;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -26,10 +28,12 @@ import java.util.Objects;
 @Entity
 @Table(
     name = "professor_crawl_candidate",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_professor_crawl_candidate_source_identity",
-        columnNames = {"source_id", "source_identity_key"}
-    ),
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_professor_crawl_candidate_source_identity",
+            columnNames = {"source_id", "source_identity_key"}
+        )
+    },
     indexes = {
         @Index(name = "idx_professor_crawl_candidate_review_status", columnList = "review_status"),
         @Index(name = "idx_professor_crawl_candidate_email", columnList = "email"),
@@ -40,6 +44,18 @@ import java.util.Objects;
         @Index(
             name = "idx_professor_crawl_candidate_current_review",
             columnList = "is_stale, review_status"
+        ),
+        @Index(
+            name = "idx_professor_crawl_candidate_promotion",
+            columnList = "source_id, review_status, is_stale, id"
+        ),
+        @Index(
+            name = "idx_professor_crawl_candidate_promoted_professor",
+            columnList = "promoted_professor_id"
+        ),
+        @Index(
+            name = "idx_professor_crawl_candidate_promoted_laboratory",
+            columnList = "promoted_laboratory_id"
         )
     }
 )
@@ -101,6 +117,26 @@ public class ProfessorCrawlCandidate extends BaseTimeEntity {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
+    @Column(name = "review_revision", nullable = false)
+    private long reviewRevision;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "promoted_professor_id")
+    private Professor promotedProfessor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "promoted_laboratory_id")
+    private Laboratory promotedLaboratory;
+
+    @Column(name = "promoted_at")
+    private LocalDateTime promotedAt;
+
+    @Column(name = "promoted_reviewed_at")
+    private LocalDateTime promotedReviewedAt;
+
+    @Column(name = "promoted_review_revision")
+    private Long promotedReviewRevision;
+
     @Column(name = "crawled_at", nullable = false)
     private LocalDateTime crawledAt;
 
@@ -155,14 +191,86 @@ public class ProfessorCrawlCandidate extends BaseTimeEntity {
     }
 
     public void approve(String reviewer, String note, LocalDateTime reviewedAt) {
-        if (!currentData().isReadyForApproval()) {
-            throw new IllegalStateException("LABORATORY_NAME_REQUIRED_FOR_APPROVAL");
-        }
         review(CandidateReviewStatus.APPROVED, reviewer, note, reviewedAt);
     }
 
     public void reject(String reviewer, String note, LocalDateTime reviewedAt) {
         review(CandidateReviewStatus.REJECTED, reviewer, note, reviewedAt);
+    }
+
+    public boolean isCurrentAndApproved() {
+        return !stale && reviewStatus == CandidateReviewStatus.APPROVED;
+    }
+
+    public boolean needsPromotion() {
+        return isCurrentAndApproved()
+            && reviewedAt != null
+            && reviewRevision > 0
+            && !Objects.equals(reviewRevision, promotedReviewRevision);
+    }
+
+    public boolean hasBeenPromoted() {
+        return promotedAt != null
+            || promotedReviewedAt != null
+            || promotedReviewRevision != null
+            || promotedProfessor != null
+            || promotedLaboratory != null;
+    }
+
+    public boolean hasConsistentPromotionState() {
+        boolean unpromoted = promotedAt == null
+            && promotedReviewedAt == null
+            && promotedReviewRevision == null
+            && promotedProfessor == null
+            && promotedLaboratory == null;
+        boolean promoted = promotedAt != null
+            && promotedReviewedAt != null
+            && promotedReviewRevision != null
+            && promotedProfessor != null;
+        return unpromoted || promoted;
+    }
+
+    public void recordPromotion(
+        Professor professor,
+        Laboratory laboratory,
+        LocalDateTime promotedAt
+    ) {
+        if (!needsPromotion()) {
+            throw new IllegalStateException("CANDIDATE_NOT_READY_FOR_PROMOTION");
+        }
+        Professor normalizedProfessor = Objects.requireNonNull(
+            professor,
+            "PROMOTED_PROFESSOR_REQUIRED"
+        );
+        Laboratory normalizedLaboratory = Objects.requireNonNull(
+            laboratory,
+            "PROMOTED_LABORATORY_REQUIRED"
+        );
+        if (hasBeenPromoted()
+            && (!sameEntity(this.promotedProfessor, normalizedProfessor)
+                || !sameEntity(this.promotedLaboratory, normalizedLaboratory))) {
+            throw new IllegalArgumentException("PROMOTED_ENTITY_CANNOT_BE_REPLACED");
+        }
+
+        this.promotedProfessor = normalizedProfessor;
+        this.promotedLaboratory = normalizedLaboratory;
+        this.promotedAt = Objects.requireNonNull(promotedAt, "PROMOTED_AT_REQUIRED");
+        promotedReviewedAt = reviewedAt;
+        promotedReviewRevision = reviewRevision;
+    }
+
+    private boolean sameEntity(Professor current, Professor requested) {
+        return current == requested
+            || current != null
+            && current.getId() != null
+            && Objects.equals(current.getId(), requested.getId());
+    }
+
+    private boolean sameEntity(Laboratory current, Laboratory requested) {
+        return current == requested
+            || current != null
+            && current.getId() != null
+            && Objects.equals(current.getId(), requested.getId());
     }
 
     private void review(
@@ -180,6 +288,7 @@ public class ProfessorCrawlCandidate extends BaseTimeEntity {
         reviewedBy = normalizedReviewer;
         reviewNote = normalizedNote;
         this.reviewedAt = normalizedReviewedAt;
+        reviewRevision++;
     }
 
     private boolean hasChanges(ProfessorCrawlData data) {

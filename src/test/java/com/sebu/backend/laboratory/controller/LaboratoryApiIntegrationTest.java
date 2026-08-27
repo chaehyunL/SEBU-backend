@@ -9,9 +9,12 @@ import com.sebu.backend.college.repository.CollegeRepository;
 import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.department.repository.DepartmentRepository;
 import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.domain.LaboratoryDepartment;
+import com.sebu.backend.laboratory.domain.LaboratoryNameSource;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
 import com.sebu.backend.laboratory.domain.LaboratoryResearchField;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
+import com.sebu.backend.laboratory.repository.LaboratoryDepartmentRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import com.sebu.backend.professor.domain.Professor;
 import com.sebu.backend.professor.repository.ProfessorRepository;
@@ -46,6 +49,7 @@ class LaboratoryApiIntegrationTest {
     @Autowired DepartmentRepository departmentRepository;
     @Autowired ProfessorRepository professorRepository;
     @Autowired LaboratoryRepository laboratoryRepository;
+    @Autowired LaboratoryDepartmentRepository laboratoryDepartmentRepository;
     @Autowired ResearchFieldRepository researchFieldRepository;
     @Autowired LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
     @Autowired AppUserRepository appUserRepository;
@@ -65,9 +69,21 @@ class LaboratoryApiIntegrationTest {
         Professor kim = professorRepository.save(new Professor(ai, "김민준", "minjun.kim@example.ac.kr"));
         Professor park = professorRepository.save(new Professor(computer, "박지훈", null));
         Laboratory lab1 = laboratoryRepository.save(new Laboratory(kim, ai, "인공지능연구실", "https://ai-lab.example.ac.kr", RecruitmentStatus.RECRUITING));
-        laboratoryRepository.save(new Laboratory(park, computer, "연구분야없는연구실", null, RecruitmentStatus.ALWAYS_OPEN));
+        Laboratory lab2 = laboratoryRepository.save(new Laboratory(
+            park,
+            computer,
+            "박지훈 교수님 연구실",
+            null,
+            null,
+            RecruitmentStatus.ALWAYS_OPEN,
+            LaboratoryNameSource.GENERATED
+        ));
         Laboratory deleted = laboratoryRepository.save(new Laboratory(park, computer, "삭제된연구실", null, RecruitmentStatus.CLOSED));
         deleted.softDelete();
+        laboratoryDepartmentRepository.save(new LaboratoryDepartment(lab1, ai));
+        laboratoryDepartmentRepository.save(new LaboratoryDepartment(lab1, computer));
+        laboratoryDepartmentRepository.save(new LaboratoryDepartment(lab2, computer));
+        laboratoryDepartmentRepository.save(new LaboratoryDepartment(deleted, computer));
         ResearchField machineLearning = researchFieldRepository.save(new ResearchField("머신러닝"));
         ResearchField aiField = researchFieldRepository.save(new ResearchField("인공지능"));
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, machineLearning));
@@ -90,13 +106,20 @@ class LaboratoryApiIntegrationTest {
             .andExpect(jsonPath("$.error").doesNotExist())
             .andExpect(jsonPath("$.data.laboratories.length()").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].name").value("인공지능연구실"))
+            .andExpect(jsonPath("$.data.laboratories[0].nameSource").value("OFFICIAL"))
             .andExpect(jsonPath("$.data.laboratories[0].professor.name").value("김민준"))
             .andExpect(jsonPath("$.data.laboratories[0].college.name").value("API테스트 인공지능융합대학"))
             .andExpect(jsonPath("$.data.laboratories[0].department.name").value("인공지능학과"))
+            .andExpect(jsonPath("$.data.laboratories[0].affiliations.length()").value(2))
+            .andExpect(jsonPath("$.data.laboratories[0].affiliations[0].department.name").value("인공지능학과"))
+            .andExpect(jsonPath("$.data.laboratories[0].affiliations[1].department.name").value("컴퓨터공학과"))
             .andExpect(jsonPath("$.data.laboratories[0].researchFields.length()").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].bookmarkCount").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].bookmarked").value(true))
             .andExpect(jsonPath("$.data.laboratories[1].websiteUrl").doesNotExist())
+            .andExpect(jsonPath("$.data.laboratories[1].name").value("박지훈 교수님 연구실"))
+            .andExpect(jsonPath("$.data.laboratories[1].nameSource").value("GENERATED"))
+            .andExpect(jsonPath("$.data.laboratories[1].affiliations.length()").value(1))
             .andExpect(jsonPath("$.data.laboratories[1].professor.email").doesNotExist())
             .andExpect(jsonPath("$.data.laboratories[1].researchFields").isEmpty())
             .andExpect(jsonPath("$.data.laboratories[1].bookmarkCount").value(0));
@@ -116,6 +139,6 @@ class LaboratoryApiIntegrationTest {
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistics.clear();
         assertThat(queryService.getAll().laboratories()).hasSize(2);
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
     }
 }

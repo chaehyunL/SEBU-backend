@@ -1,6 +1,7 @@
 package com.sebu.backend.auth.adapter;
 
 import com.sebu.backend.auth.config.SejongClientProperties;
+import okhttp3.CipherSuite;
 import okhttp3.ConnectionSpec;
 import okhttp3.HttpUrl;
 import okhttp3.JavaNetCookieJar;
@@ -31,6 +32,10 @@ import static com.sebu.backend.auth.port.SejongAuthenticationException.systemUna
 
 @Component
 public class SejongHttpClientFactory {
+    static final TlsVersion SEJONG_TLS_VERSION = TlsVersion.TLS_1_2;
+    static final CipherSuite SEJONG_LEGACY_CIPHER_SUITE =
+        CipherSuite.TLS_RSA_WITH_AES_256_CBC_SHA;
+
     private final OkHttpClient baseHttpClient;
     private final Set<Origin> allowedOrigins;
 
@@ -38,19 +43,27 @@ public class SejongHttpClientFactory {
         TlsMaterial tlsMaterial = createTlsMaterial();
         this.allowedOrigins = Set.copyOf(List.of(
             Origin.from(properties.portalLoginUrl()),
+            Origin.from(properties.portalLoginPageUrl()),
+            Origin.from(properties.portalSsoLoginUrl()),
             Origin.from(properties.ssoLoginUrl()),
             Origin.from(properties.userInfoUrl())
         ));
-        ConnectionSpec tls12 = new ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
-            .tlsVersions(TlsVersion.TLS_1_2)
+
+        ConnectionSpec modernTls12 = new ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
+            .tlsVersions(SEJONG_TLS_VERSION)
+            .build();
+        ConnectionSpec legacyTls12 = new ConnectionSpec.Builder(ConnectionSpec.COMPATIBLE_TLS)
+            .tlsVersions(SEJONG_TLS_VERSION)
+            .cipherSuites(SEJONG_LEGACY_CIPHER_SUITE)
             .build();
         List<ConnectionSpec> connectionSpecs = allowedOrigins.stream()
             .allMatch(origin -> "https".equals(origin.scheme()))
-            ? List.of(tls12)
-            : List.of(tls12, ConnectionSpec.CLEARTEXT);
+            ? List.of(modernTls12, legacyTls12)
+            : List.of(modernTls12, legacyTls12, ConnectionSpec.CLEARTEXT);
+
         this.baseHttpClient = new OkHttpClient.Builder()
             .sslSocketFactory(tlsMaterial.sslContext().getSocketFactory(), tlsMaterial.trustManager())
-            .followRedirects(true)
+            .followRedirects(false)
             .followSslRedirects(false)
             .connectTimeout(properties.connectTimeout())
             .readTimeout(properties.requestTimeout())

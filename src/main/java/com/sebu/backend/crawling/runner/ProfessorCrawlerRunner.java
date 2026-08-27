@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@Profile("crawler")
+@Profile("crawler & !promotion")
 @ConditionalOnProperty(
     prefix = "app.professor-crawler",
     name = "enabled",

@@ -132,6 +132,18 @@ public class AuthSessionService {
             .ifPresent(token -> token.revoke(now()));
     }
 
+    @Transactional
+    public void revokeAllByUserId(Long userId) {
+        LocalDateTime now = now();
+
+        refreshTokenRepository.findAllByUser_Id(userId)
+                .forEach(token -> {
+                    if (token.isUsableAt(now)) {
+                        token.revoke(now);
+                    }
+                });
+    }
+
     private LoginSession issueLoginSession(AppUser user, boolean newUser, LocalDateTime issuedAt) {
         IssuedRefreshToken refreshToken = issueRefreshToken(user, issuedAt);
         return new LoginSession(

@@ -1,10 +1,12 @@
 package com.sebu.backend.laboratory.repository;
 
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.laboratory.domain.LaboratoryNameSource;
 
 public interface LaboratorySummaryProjection {
     Long getId();
     String getName();
+    LaboratoryNameSource getNameSource();
     String getWebsiteUrl();
     Long getProfessorId();
     String getProfessorName();

@@ -12,16 +12,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SejongDepartmentNameMigrationTest {
     @Test
-    void emptyDatabaseMigratesThroughV15() {
+    void emptyDatabaseMigratesThroughV17() {
         String url = databaseUrl("empty");
 
         var result = flyway(url, null).migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(15);
+        assertThat(result.migrationsExecuted).isEqualTo(17);
     }
 
     @Test
-    void v14DataSurvivesV15WithoutUnsafeBackfill() throws Exception {
+    void v14DataSurvivesV17WithoutUnsafeBackfill() throws Exception {
         String url = databaseUrl("upgrade");
         flyway(url, "14").migrate();
 

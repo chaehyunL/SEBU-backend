@@ -67,9 +67,35 @@ Windows에서는 저장소 루트에서 다음 명령을 실행합니다.
 - Username: `sa`
 - Password: 없음
 
+### 세종 포털 로그인 TLS 호환성
+
+세종 포털과 학사정보시스템은 현재 Java 21 기본 보안 정책이 차단하는 구형
+`TLSv1.2 / TLS_RSA_WITH_AES_256_CBC_SHA` 조합만 협상합니다. 백엔드는 JVM 전역 보안
+설정을 낮추지 않고, 세종 인증용 HTTP 클라이언트에만 Conscrypt를 적용해 이 조합을
+허용합니다. 표준 인증서 체인 검증과 HTTPS 호스트명 검증은 그대로 유지됩니다.
+
+로컬 `bootRun`에는 별도 TLS 설정이 필요하지 않습니다. Docker 이미지는 Conscrypt의
+네이티브 라이브러리와 호환되는 Ubuntu Jammy 기반 Temurin 이미지를 사용합니다.
+세종 측 TLS가 개선되면 기본 Java TLS로 자동 재시도하며, 장기적으로는 이 호환 계층을
+제거하는 것이 권장됩니다.
+
 ## Docker 실행
 
 Docker Compose로 Java 21 빌드와 백엔드 실행을 한 번에 처리할 수 있습니다.
+
+인증 기능을 초기화하려면 32바이트 이상의 랜덤 키를 Base64로 인코딩한
+`JWT_SECRET_BASE64` 환경 변수가 필요합니다. PowerShell에서는 다음과 같이 생성합니다.
+
+```powershell
+$secretBytes = New-Object byte[] 32
+$random = [Security.Cryptography.RandomNumberGenerator]::Create()
+$random.GetBytes($secretBytes)
+$random.Dispose()
+$env:JWT_SECRET_BASE64 = [Convert]::ToBase64String($secretBytes)
+```
+
+환경 변수 대신 `.env.example`을 `.env`로 복사한 다음 `JWT_SECRET_BASE64` 값을 채워도 됩니다.
+`.env` 파일은 Git에서 제외되며 비밀키를 저장소에 커밋하지 않습니다.
 
 ```powershell
 docker compose up --build -d

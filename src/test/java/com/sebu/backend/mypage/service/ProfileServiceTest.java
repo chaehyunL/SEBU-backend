@@ -45,10 +45,6 @@ class ProfileServiceTest {
     @Test
     void 프로필을_최초_저장할_수_있다() {
         // given
-        AppUser user = appUserRepository.save(
-                new AppUser("profile-test@example.com")
-        );
-
         College college = collegeRepository.save(
                 new College("프로필테스트대학")
         );
@@ -56,12 +52,12 @@ class ProfileServiceTest {
         Department major = departmentRepository.save(
                 new Department(college, "AI로봇학과")
         );
+        AppUser user = sejongUser("profile-test", "홍길동", major);
 
         ProfileUpdateRequest request =
                 new ProfileUpdateRequest(
-                        " 홍길동 ",
+                        " 길동이 ",
                         (short) 3,
-                        major.getId().toString(),
                         GpaBand.GTE_3_5,
                         "머신러닝에 관심이 있습니다."
                 );
@@ -75,12 +71,13 @@ class ProfileServiceTest {
 
         // then
         assertThat(response.name()).isEqualTo("홍길동");
+        assertThat(response.nickname()).isEqualTo("길동이");
         assertThat(response.grade()).isEqualTo((short) 3);
 
-        assertThat(response.major().id())
+        assertThat(response.department().id())
                 .isEqualTo(major.getId().toString());
 
-        assertThat(response.major().name())
+        assertThat(response.department().name())
                 .isEqualTo("AI로봇학과");
 
         assertThat(response.gpaBand())
@@ -96,10 +93,6 @@ class ProfileServiceTest {
     @Test
     void 같은_프로필을_다시_저장하면_profileUpdatedAt은_변경되지_않는다() {
         // given
-        AppUser user = appUserRepository.save(
-                new AppUser("profile-same@example.com")
-        );
-
         College college = collegeRepository.save(
                 new College("프로필동일테스트대학")
         );
@@ -107,12 +100,12 @@ class ProfileServiceTest {
         Department major = departmentRepository.save(
                 new Department(college, "프로필동일학과")
         );
+        AppUser user = sejongUser("profile-same", "홍길동", major);
 
         ProfileUpdateRequest request =
                 new ProfileUpdateRequest(
-                        "홍길동",
+                        "   ",
                         (short) 3,
-                        major.getId().toString(),
                         GpaBand.GTE_3_5,
                         "머신러닝에 관심이 있습니다."
                 );
@@ -136,6 +129,7 @@ class ProfileServiceTest {
         // then
         assertThat(second.profileUpdatedAt())
                 .isEqualTo(firstUpdatedAt);
+        assertThat(second.nickname()).isNull();
     }
 
     @MockitoBean
@@ -156,10 +150,6 @@ class ProfileServiceTest {
     @Test
     void 자기소개가_정책에_위반되면_프로필은_저장되지_않는다() {
         // given
-        AppUser user = appUserRepository.save(
-                new AppUser("moderation-fail@example.com")
-        );
-
         College college = collegeRepository.save(
                 new College("모더레이션테스트대학")
         );
@@ -167,12 +157,13 @@ class ProfileServiceTest {
         Department major = departmentRepository.save(
                 new Department(college, "모더레이션테스트학과")
         );
+        AppUser user = sejongUser("moderation-fail", "홍길동", major);
+        LocalDateTime originalProfileUpdatedAt = user.getProfileUpdatedAt();
 
         ProfileUpdateRequest request =
                 new ProfileUpdateRequest(
-                        "홍길동",
+                        "길동이",
                         (short) 3,
-                        major.getId().toString(),
                         GpaBand.GTE_3_5,
                         "차단될 자기소개"
                 );
@@ -199,12 +190,23 @@ class ProfileServiceTest {
         AppUser savedUser = appUserRepository.findById(user.getId())
                 .orElseThrow();
 
-        assertThat(savedUser.getName()).isNull();
+        assertThat(savedUser.getName()).isEqualTo("홍길동");
+        assertThat(savedUser.getNickname()).isNull();
         assertThat(savedUser.getGrade()).isNull();
-        assertThat(savedUser.getMajorDepartment()).isNull();
+        assertThat(savedUser.getMajorDepartment()).isEqualTo(major);
         assertThat(savedUser.getGpaBand()).isNull();
         assertThat(savedUser.getIntroduction()).isEmpty();
         assertThat(savedUser.isProfileCompleted()).isFalse();
-        assertThat(savedUser.getProfileUpdatedAt()).isNull();
+        assertThat(savedUser.getProfileUpdatedAt()).isEqualTo(originalProfileUpdatedAt);
+    }
+
+    private AppUser sejongUser(String studentId, String name, Department department) {
+        return appUserRepository.save(AppUser.sejong(
+                studentId,
+                name,
+                department.getName(),
+                department,
+                LocalDateTime.now().minusMinutes(1)
+        ));
     }
 }

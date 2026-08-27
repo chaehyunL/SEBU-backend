@@ -5,7 +5,7 @@ import com.sebu.backend.bookmark.exception.InvalidCursorException;
 import com.sebu.backend.bookmark.exception.InvalidSizeException;
 import com.sebu.backend.global.response.ApiResponse;
 import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
-import com.sebu.backend.mypage.exception.MajorNotFoundException;
+import com.sebu.backend.user.exception.ProfileUpdateConflictException;
 import com.sebu.backend.mypage.moderation.IntroductionModerationException;
 import com.sebu.backend.mypage.moderation.IntroductionModerationUnavailableException;
 import com.sebu.backend.user.exception.UserNotFoundException;
@@ -19,6 +19,18 @@ import java.util.List;
 
 @RestControllerAdvice
 public class ExceptionControllerAdvice {
+
+    @ExceptionHandler(ProfileUpdateConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleProfileUpdateConflict(
+            ProfileUpdateConflictException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.failure(
+                        "PROFILE_UPDATE_CONFLICT",
+                        "프로필이 변경되었습니다. 최신 정보를 확인한 후 다시 시도해 주세요."
+                ));
+    }
 
     @ExceptionHandler(IntroductionModerationException.class)
     public ResponseEntity<ApiResponse<Void>> handleIntroductionModeration(
@@ -74,18 +86,6 @@ public class ExceptionControllerAdvice {
                 .body(ApiResponse.failure(
                         "LABORATORY_NOT_FOUND",
                         "연구실을 찾을 수 없습니다."
-                ));
-    }
-
-    @ExceptionHandler(MajorNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleMajorNotFound(
-            MajorNotFoundException exception
-    ) {
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.failure(
-                        "MAJOR_NOT_FOUND",
-                        "전공을 찾을 수 없습니다."
                 ));
     }
 

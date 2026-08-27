@@ -2,7 +2,8 @@ package com.sebu.backend.auth.service;
 
 import com.sebu.backend.auth.exception.InvalidLoginRequestException;
 import com.sebu.backend.auth.port.SejongAuthenticator;
-import com.sebu.backend.auth.port.SejongIdentity;
+import com.sebu.backend.auth.port.SejongAuthenticationException;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -27,15 +28,28 @@ class AuthServiceTest {
     AuthService authService;
 
     @Test
-    void provisionsUserWithAuthenticatedIdentityInsteadOfRequestedStudentId() {
-        when(sejongAuthenticator.authenticate("requested-id", "password"))
-            .thenReturn(new SejongIdentity("verified-id", "running", "login", "student"));
-        when(authSessionService.start("verified-id"))
+    void provisionsUserWithVerifiedSchoolProfile() {
+        SejongUserProfile profile = new SejongUserProfile("21012345", "홍길동", "컴퓨터공학과");
+        when(sejongAuthenticator.authenticate("21012345", "password"))
+            .thenReturn(profile);
+        when(authSessionService.start(profile))
             .thenReturn(mock(AuthSessionService.LoginSession.class));
 
-        authService.loginWithSejong("requested-id", "password");
+        authService.loginWithSejong("21012345", "password");
 
-        verify(authSessionService).start("verified-id");
+        verify(authSessionService).start(profile);
+    }
+
+    @Test
+    void rejectsWhenRequestedAndVerifiedStudentIdsDiffer() {
+        when(sejongAuthenticator.authenticate("21012345", "password"))
+            .thenReturn(new SejongUserProfile("21054321", "홍길동", "컴퓨터공학과"));
+
+        assertThatThrownBy(() -> authService.loginWithSejong("21012345", "password"))
+            .isInstanceOfSatisfying(SejongAuthenticationException.class, exception ->
+                org.assertj.core.api.Assertions.assertThat(exception.getReason())
+                    .isEqualTo(SejongAuthenticationException.Reason.IDENTITY_MISMATCH));
+        verifyNoInteractions(authSessionService);
     }
 
     @Test
@@ -43,6 +57,19 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.loginWithSejong(" ", "password"))
             .isInstanceOf(InvalidLoginRequestException.class)
             .hasMessage("INVALID_LOGIN_REQUEST");
+        verifyNoInteractions(sejongAuthenticator, authSessionService);
+    }
+
+    @Test
+    void rejectsInvalidStudentIdAndPasswordLengthsBeforeCallingExternalSystem() {
+        assertThatThrownBy(() -> authService.loginWithSejong("2101234", "password"))
+            .isInstanceOf(InvalidLoginRequestException.class);
+        assertThatThrownBy(() -> authService.loginWithSejong("abcdefgh", "password"))
+            .isInstanceOf(InvalidLoginRequestException.class);
+        assertThatThrownBy(() -> authService.loginWithSejong("21012345", "short"))
+            .isInstanceOf(InvalidLoginRequestException.class);
+        assertThatThrownBy(() -> authService.loginWithSejong("21012345", "x".repeat(129)))
+            .isInstanceOf(InvalidLoginRequestException.class);
         verifyNoInteractions(sejongAuthenticator, authSessionService);
     }
 }

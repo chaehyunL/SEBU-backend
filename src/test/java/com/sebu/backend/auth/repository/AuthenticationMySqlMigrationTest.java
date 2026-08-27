@@ -19,7 +19,7 @@ class AuthenticationMySqlMigrationTest {
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4");
 
     @Test
-    void upgradesExistingV12DataAndAppliesAuthenticationConstraintsOnMySql8() throws Exception {
+    void upgradesExistingV12DataThroughLatestAuthenticationSchemaOnMySql8() throws Exception {
         Flyway.configure()
             .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
             .locations("classpath:db/migration")
@@ -43,7 +43,8 @@ class AuthenticationMySqlMigrationTest {
             MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword()
         ); var statement = connection.createStatement()) {
             try (var result = statement.executeQuery("""
-                SELECT email, provider, provider_user_id, profile_completed
+                SELECT email, provider, provider_user_id, profile_completed, sejong_department_name,
+                       nickname, version
                 FROM app_user
                 WHERE email = 'legacy@example.com'
                 """)) {
@@ -52,6 +53,9 @@ class AuthenticationMySqlMigrationTest {
                 assertThat(result.getString("provider")).isNull();
                 assertThat(result.getString("provider_user_id")).isNull();
                 assertThat(result.getBoolean("profile_completed")).isFalse();
+                assertThat(result.getString("sejong_department_name")).isNull();
+                assertThat(result.getString("nickname")).isNull();
+                assertThat(result.getLong("version")).isZero();
             }
 
             statement.executeUpdate("""

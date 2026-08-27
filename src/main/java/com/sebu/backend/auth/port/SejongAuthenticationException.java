@@ -31,8 +31,26 @@ public class SejongAuthenticationException extends RuntimeException {
         );
     }
 
+    public static SejongAuthenticationException identityMismatch() {
+        return new SejongAuthenticationException(
+            Reason.IDENTITY_MISMATCH,
+            "SEJONG_IDENTITY_MISMATCH",
+            null
+        );
+    }
+
+    public static SejongAuthenticationException responseInvalid() {
+        return new SejongAuthenticationException(
+            Reason.RESPONSE_INVALID,
+            "SEJONG_RESPONSE_INVALID",
+            null
+        );
+    }
+
     public enum Reason {
         AUTHENTICATION_FAILED,
-        SYSTEM_UNAVAILABLE
+        SYSTEM_UNAVAILABLE,
+        IDENTITY_MISMATCH,
+        RESPONSE_INVALID
     }
 }

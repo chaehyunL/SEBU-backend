@@ -42,6 +42,7 @@ class UserProfileSchemaIntegrationTest {
         jdbcTemplate.update("""
             UPDATE app_user
             SET name = ?,
+                nickname = ?,
                 grade = ?,
                 major_department_id = ?,
                 gpa_band = ?,
@@ -54,6 +55,7 @@ class UserProfileSchemaIntegrationTest {
             WHERE id = ?
             """,
             "홍길동",
+            "길동이",
             3,
             department.getId(),
             GpaBand.GTE_3_5.name(),
@@ -70,6 +72,7 @@ class UserProfileSchemaIntegrationTest {
         AppUser found = appUserRepository.findById(user.getId()).orElseThrow();
         assertThat(found.getEmail()).isEqualTo("profile@example.com");
         assertThat(found.getName()).isEqualTo("홍길동");
+        assertThat(found.getNickname()).isEqualTo("길동이");
         assertThat(found.getGrade()).isEqualTo((short) 3);
         assertThat(found.getMajorDepartment().getId()).isEqualTo(department.getId());
         assertThat(found.getGpaBand()).isEqualTo(GpaBand.GTE_3_5);
@@ -88,6 +91,8 @@ class UserProfileSchemaIntegrationTest {
 
         AppUser found = appUserRepository.findById(user.getId()).orElseThrow();
         assertThat(found.getName()).isNull();
+        assertThat(found.getNickname()).isNull();
+        assertThat(found.getVersion()).isZero();
         assertThat(found.getGrade()).isNull();
         assertThat(found.getMajorDepartment()).isNull();
         assertThat(found.getGpaBand()).isNull();

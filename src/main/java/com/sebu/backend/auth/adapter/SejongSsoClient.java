@@ -1,25 +1,23 @@
 package com.sebu.backend.auth.adapter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sebu.backend.auth.config.SejongClientProperties;
 import com.sebu.backend.auth.port.SejongAuthenticationException;
 import com.sebu.backend.auth.port.SejongAuthenticator;
-import com.sebu.backend.auth.port.SejongIdentity;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import okhttp3.FormBody;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.net.HttpCookie;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URLEncoder;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashSet;
@@ -34,6 +32,7 @@ import java.util.regex.Pattern;
 public class SejongSsoClient implements SejongAuthenticator {
     private static final String PORTAL_SESSION_COOKIE = "SSOTOKEN";
     private static final String SJPT_SESSION_COOKIE = "JSESSIONID";
+    private static final int MAX_RESPONSE_BYTES = 64 * 1024;
     private static final int MAX_REDIRECTS = 5;
     private static final Set<Integer> REDIRECT_STATUS_CODES = Set.of(301, 302, 303, 307, 308);
     private static final Pattern PORTAL_LOGIN_RESULT_PATTERN = Pattern.compile(
@@ -42,9 +41,9 @@ public class SejongSsoClient implements SejongAuthenticator {
     );
     private static final Set<String> PORTAL_REJECTION_RESULTS = Set.of(
         "erridpwd",
-        "Error",
-        "pwdNeedChg",
-        "invalidDt",
+        "error",
+        "pwdneedchg",
+        "invaliddt",
         "invalid"
     );
     private static final String BROWSER_USER_AGENT =
@@ -53,155 +52,175 @@ public class SejongSsoClient implements SejongAuthenticator {
     private static final String HTML_ACCEPT =
         "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8";
     private static final String ACCEPT_LANGUAGE = "ko-KR,ko;q=0.9,en;q=0.8";
+    private static final MediaType JSON = MediaType.get("application/json; charset=UTF-8");
 
     private final SejongHttpClientFactory httpClientFactory;
     private final SejongClientProperties properties;
-    private final ObjectMapper objectMapper;
+    private final SejongUserInfoParser userInfoParser;
 
     @Override
-    public SejongIdentity authenticate(String studentId, String password) {
+    public SejongUserProfile authenticate(String studentId, String password) {
         SejongHttpClientFactory.Session session = httpClientFactory.create();
-
-        HttpResponse<String> portalPageResponse = sendFollowingAllowedGetRedirects(
-            session,
-            portalLoginPageRequest(),
-            "portal-login-page"
-        );
-        requireSuccessful("portal-login-page", portalPageResponse);
-
-        HttpResponse<String> portalResponse = send(
-            session,
-            portalLoginRequest(studentId, password),
-            "portal-login"
-        );
-        String portalLoginResult = portalLoginResult(portalResponse);
-        if (isPortalAuthenticationFailure(portalResponse, portalLoginResult)) {
-            log.warn(
-                "Sejong authentication rejected: stage=portal-login status={} finalPath={}",
-                portalResponse.statusCode(),
-                portalResponse.uri().getPath()
+        try {
+            ClientResponse portalPageResponse = sendFollowingAllowedGetRedirects(
+                session,
+                portalLoginPageRequest(),
+                "portal-login-page"
             );
-            throw SejongAuthenticationException.authenticationFailed();
-        }
-        if (portalLoginResult != null && !"OK".equalsIgnoreCase(portalLoginResult)) {
-            log.warn(
-                "Sejong authentication upstream failure: stage=portal-login-result status={}",
-                portalResponse.statusCode()
-            );
-            throw SejongAuthenticationException.systemUnavailable();
-        }
-        requireSuccessful("portal-login", portalResponse);
+            requireSuccessful("portal-login-page", portalPageResponse.statusCode());
 
-        HttpResponse<String> portalSsoResponse = sendFollowingAllowedGetRedirects(
-            session,
-            portalSsoLoginRequest(),
-            "portal-sso-login"
-        );
-        requireSuccessful("portal-sso-login", portalSsoResponse);
-        if (!hasCookie(session, PORTAL_SESSION_COOKIE)) {
-            log.warn(
-                "Sejong authentication upstream failure: stage=portal-session-cookie status={}",
-                portalSsoResponse.statusCode()
+            ClientResponse portalResponse = send(
+                session,
+                portalLoginRequest(studentId, password),
+                "portal-login"
             );
-            throw SejongAuthenticationException.systemUnavailable();
-        }
+            requirePortalAuthentication(portalResponse, session);
 
-        HttpResponse<String> ssoResponse = sendFollowingAllowedGetRedirects(
-            session,
-            ssoLoginRequest(),
-            "sso-login"
-        );
-        requireSuccessful("sso-login", ssoResponse);
-        if (!hasCookie(session, SJPT_SESSION_COOKIE)) {
-            log.warn(
-                "Sejong authentication upstream failure: stage=sso-session-cookie status={}",
-                ssoResponse.statusCode()
+            ClientResponse portalSsoResponse = sendFollowingAllowedGetRedirects(
+                session,
+                portalSsoLoginRequest(),
+                "portal-sso-login"
             );
-            throw SejongAuthenticationException.systemUnavailable();
-        }
+            requireSuccessful("portal-sso-login", portalSsoResponse.statusCode());
+            requireCookie(session, PORTAL_SESSION_COOKIE, "portal-session-cookie");
 
-        HttpResponse<String> userInfoResponse = send(session, userInfoRequest(), "user-info");
-        requireSuccessful("user-info", userInfoResponse);
-        return parseIdentity(userInfoResponse.body());
+            ClientResponse ssoResponse = sendFollowingAllowedGetRedirects(
+                session,
+                ssoLoginRequest(),
+                "sso-login"
+            );
+            requireSuccessful("sso-login", ssoResponse.statusCode());
+            requireCookie(session, SJPT_SESSION_COOKIE, "sso-session-cookie");
+
+            ClientResponse userInfoResponse = send(session, userInfoRequest(), "user-info");
+            requireSuccessful("user-info", userInfoResponse.statusCode());
+            return userInfoParser.parse(userInfoResponse.body());
+        } finally {
+            session.cookieManager().getCookieStore().removeAll();
+        }
     }
 
-    private HttpRequest portalLoginRequest(String studentId, String password) {
-        String form = "mainLogin=Y&rtUrl=" + formEncode(properties.portalReturnUrl())
-            + "&id=" + formEncode(studentId.trim())
-            + "&password=" + formEncode(password);
-        return browserRequestBuilder(properties.portalLoginUrl())
-            .header(HttpHeaders.ACCEPT, HTML_ACCEPT)
-            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-            .header(HttpHeaders.ORIGIN, origin(properties.portalLoginUrl()))
-            .header(HttpHeaders.REFERER, properties.portalLoginPageUrl().toString())
-            .header("Sec-Fetch-Dest", "document")
-            .header("Sec-Fetch-Mode", "navigate")
-            .header("Sec-Fetch-Site", "same-origin")
-            .header("Sec-Fetch-User", "?1")
-            .header("Upgrade-Insecure-Requests", "1")
-            .POST(HttpRequest.BodyPublishers.ofString(form))
-            .build();
-    }
-
-    private HttpRequest portalLoginPageRequest() {
+    private Request portalLoginPageRequest() {
         return browserRequestBuilder(properties.portalLoginPageUrl())
-            .header(HttpHeaders.ACCEPT, HTML_ACCEPT)
+            .header("Accept", HTML_ACCEPT)
             .header("Sec-Fetch-Dest", "document")
             .header("Sec-Fetch-Mode", "navigate")
             .header("Sec-Fetch-Site", "none")
             .header("Sec-Fetch-User", "?1")
             .header("Upgrade-Insecure-Requests", "1")
-            .GET()
+            .get()
             .build();
     }
 
-    private HttpRequest portalSsoLoginRequest() {
-        return browserRequestBuilder(properties.portalSsoLoginUrl())
-            .header(HttpHeaders.ACCEPT, HTML_ACCEPT)
-            .header(HttpHeaders.REFERER, properties.portalLoginUrl().toString())
+    private Request portalLoginRequest(String studentId, String password) {
+        FormBody form = new FormBody.Builder()
+            .add("mainLogin", "Y")
+            .add("rtUrl", properties.portalReturnUrl())
+            .add("id", studentId.trim())
+            .add("password", password)
+            .build();
+        return browserRequestBuilder(properties.portalLoginUrl())
+            .header("Accept", HTML_ACCEPT)
+            .header("Origin", origin(properties.portalLoginUrl()))
+            .header("Referer", properties.portalLoginPageUrl().toString())
             .header("Sec-Fetch-Dest", "document")
             .header("Sec-Fetch-Mode", "navigate")
             .header("Sec-Fetch-Site", "same-origin")
-            .GET()
+            .header("Sec-Fetch-User", "?1")
+            .header("Upgrade-Insecure-Requests", "1")
+            .post(form)
             .build();
     }
 
-    private HttpRequest ssoLoginRequest() {
+    private Request portalSsoLoginRequest() {
+        return browserRequestBuilder(properties.portalSsoLoginUrl())
+            .header("Accept", HTML_ACCEPT)
+            .header("Referer", properties.portalLoginUrl().toString())
+            .header("Sec-Fetch-Dest", "document")
+            .header("Sec-Fetch-Mode", "navigate")
+            .header("Sec-Fetch-Site", "same-origin")
+            .get()
+            .build();
+    }
+
+    private Request ssoLoginRequest() {
         return browserRequestBuilder(properties.ssoLoginUrl())
-            .header(HttpHeaders.ACCEPT, HTML_ACCEPT)
-            .header(HttpHeaders.REFERER, origin(properties.portalLoginUrl()) + "/")
-            .GET()
+            .header("Accept", HTML_ACCEPT)
+            .header("Referer", origin(properties.portalLoginUrl()) + "/")
+            .get()
             .build();
     }
 
-    private HttpRequest userInfoRequest() {
-        URI requestUri = URI.create(properties.userInfoUrl() + "?addParam=" + emptyRunContext());
+    private Request userInfoRequest() {
+        URI requestUri = URI.create(
+            properties.userInfoUrl() + "?addParam=" + encodedEmptyExecutionContext()
+        );
         String sjptOrigin = origin(properties.ssoLoginUrl());
         return browserRequestBuilder(requestUri)
-            .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-            .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-            .header(HttpHeaders.ORIGIN, sjptOrigin)
-            .header(HttpHeaders.REFERER, sjptOrigin + "/")
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .header("Origin", sjptOrigin)
+            .header("Referer", sjptOrigin + "/")
             .header("submissionid", "mf___subMainUserInfoInit")
-            .POST(HttpRequest.BodyPublishers.ofString(""))
+            .post(RequestBody.create("", JSON))
             .build();
     }
 
-    private HttpResponse<String> send(
+    private ClientResponse sendFollowingAllowedGetRedirects(
         SejongHttpClientFactory.Session session,
-        HttpRequest request,
+        Request initialRequest,
         String stage
     ) {
-        try {
-            return session.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            log.warn(
-                "Sejong authentication upstream failure: stage={} causeType={}",
-                stage,
-                exception.getClass().getSimpleName()
+        Request request = initialRequest;
+        for (int redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
+            ClientResponse response = sendWithoutBody(session, request, stage);
+            if (!isRedirect(response.statusCode())) {
+                return response;
+            }
+            if (redirectCount == MAX_REDIRECTS) {
+                rejectRedirect(stage, response.statusCode(), "limit-exceeded");
+            }
+
+            HttpUrl redirectUrl = resolveRedirectUrl(response.requestUrl(), response.location());
+            if (!isAllowedRedirect(response.requestUrl(), redirectUrl)) {
+                rejectRedirect(stage, response.statusCode(), "destination-not-allowed");
+            }
+            request = redirectedGetRequest(request, redirectUrl);
+        }
+        throw SejongAuthenticationException.systemUnavailable();
+    }
+
+    private ClientResponse send(
+        SejongHttpClientFactory.Session session,
+        Request request,
+        String stage
+    ) {
+        return send(session, request, stage, true);
+    }
+
+    private ClientResponse sendWithoutBody(
+        SejongHttpClientFactory.Session session,
+        Request request,
+        String stage
+    ) {
+        return send(session, request, stage, false);
+    }
+
+    private ClientResponse send(
+        SejongHttpClientFactory.Session session,
+        Request request,
+        String stage,
+        boolean includeBody
+    ) {
+        try (Response response = session.httpClient().newCall(request).execute()) {
+            return new ClientResponse(
+                response.code(),
+                includeBody ? readLimitedBody(response.body()) : "",
+                response.header("Location"),
+                request.url()
             );
-            throw SejongAuthenticationException.systemUnavailable(exception);
+        } catch (SejongAuthenticationException exception) {
+            throw exception;
         } catch (IOException | RuntimeException exception) {
             log.warn(
                 "Sejong authentication upstream failure: stage={} causeType={}",
@@ -212,104 +231,134 @@ public class SejongSsoClient implements SejongAuthenticator {
         }
     }
 
-    private HttpResponse<String> sendFollowingAllowedGetRedirects(
-        SejongHttpClientFactory.Session session,
-        HttpRequest initialRequest,
-        String stage
-    ) {
-        HttpRequest request = initialRequest;
-        for (int redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
-            HttpResponse<String> response = send(session, request, stage);
-            if (!REDIRECT_STATUS_CODES.contains(response.statusCode())) {
-                return response;
-            }
-            if (redirectCount == MAX_REDIRECTS) {
-                rejectRedirect(stage, response.statusCode(), "limit-exceeded");
-            }
+    private String readLimitedBody(ResponseBody responseBody) throws IOException {
+        if (responseBody == null) {
+            return "";
+        }
+        if (responseBody.contentLength() > MAX_RESPONSE_BYTES) {
+            throw SejongAuthenticationException.responseInvalid();
+        }
+        byte[] body = responseBody.byteStream().readNBytes(MAX_RESPONSE_BYTES + 1);
+        if (body.length > MAX_RESPONSE_BYTES) {
+            throw SejongAuthenticationException.responseInvalid();
+        }
+        return new String(body, StandardCharsets.UTF_8);
+    }
 
-            String location = response.headers().firstValue(HttpHeaders.LOCATION).orElse(null);
-            URI redirectUri = resolveRedirectUri(request.uri(), location);
-            if (!isAllowedRedirect(request.uri(), redirectUri)) {
-                rejectRedirect(stage, response.statusCode(), "destination-not-allowed");
-            }
-            request = redirectedGetRequest(request, redirectUri);
+    private void requirePortalAuthentication(
+        ClientResponse response,
+        SejongHttpClientFactory.Session session
+    ) {
+        String portalLoginResult = portalLoginResult(response.body());
+        if (isPortalAuthenticationFailure(response.statusCode(), portalLoginResult)) {
+            throw SejongAuthenticationException.authenticationFailed();
+        }
+        if (portalLoginResult != null && !"OK".equalsIgnoreCase(portalLoginResult)) {
+            throw SejongAuthenticationException.systemUnavailable();
+        }
+        if (isSuccessful(response.statusCode())) {
+            return;
+        }
+        if (isRedirect(response.statusCode()) && hasCookie(session, PORTAL_SESSION_COOKIE)) {
+            return;
         }
         throw SejongAuthenticationException.systemUnavailable();
     }
 
-    private URI resolveRedirectUri(URI requestUri, String location) {
-        if (location == null || location.isBlank()) {
-            return null;
+    private boolean isPortalAuthenticationFailure(int statusCode, String portalLoginResult) {
+        if (statusCode == 401) {
+            return true;
         }
-        try {
-            URI resolved = requestUri.resolve(URI.create(location)).normalize();
-            if (resolved.getFragment() == null) {
-                return resolved;
-            }
-            return new URI(
-                resolved.getScheme(),
-                resolved.getUserInfo(),
-                resolved.getHost(),
-                resolved.getPort(),
-                resolved.getPath(),
-                resolved.getQuery(),
-                null
+        boolean resultCanDescribeAuthentication = statusCode == 403 || isSuccessful(statusCode);
+        return resultCanDescribeAuthentication
+            && portalLoginResult != null
+            && PORTAL_REJECTION_RESULTS.contains(portalLoginResult.toLowerCase(Locale.ROOT));
+    }
+
+    private String portalLoginResult(String responseBody) {
+        Matcher resultMatcher = PORTAL_LOGIN_RESULT_PATTERN.matcher(responseBody);
+        return resultMatcher.find() ? resultMatcher.group(1) : null;
+    }
+
+    private void requireSuccessful(String stage, int statusCode) {
+        if (!isSuccessful(statusCode)) {
+            log.warn(
+                "Sejong authentication upstream failure: stage={} status={}",
+                stage,
+                statusCode
             );
-        } catch (IllegalArgumentException | URISyntaxException exception) {
-            return null;
+            throw SejongAuthenticationException.systemUnavailable();
         }
     }
 
-    private boolean isAllowedRedirect(URI requestUri, URI redirectUri) {
-        if (redirectUri == null || redirectUri.getUserInfo() != null) {
+    private void requireCookie(
+        SejongHttpClientFactory.Session session,
+        String expectedName,
+        String stage
+    ) {
+        if (!hasCookie(session, expectedName)) {
+            log.warn("Sejong authentication upstream failure: stage={}", stage);
+            throw SejongAuthenticationException.systemUnavailable();
+        }
+    }
+
+    private boolean hasCookie(SejongHttpClientFactory.Session session, String expectedName) {
+        return session.cookieManager().getCookieStore().getCookies().stream()
+            .anyMatch(cookie -> expectedName.equalsIgnoreCase(cookie.getName())
+                && cookie.getValue() != null
+                && !cookie.getValue().isBlank());
+    }
+
+    private HttpUrl resolveRedirectUrl(HttpUrl requestUrl, String location) {
+        if (location == null || location.isBlank()) {
+            return null;
+        }
+        HttpUrl resolved = requestUrl.resolve(location);
+        return resolved == null ? null : resolved.newBuilder().fragment(null).build();
+    }
+
+    private boolean isAllowedRedirect(HttpUrl requestUrl, HttpUrl redirectUrl) {
+        if (redirectUrl == null || redirectUrl.username().length() > 0 || redirectUrl.password().length() > 0) {
             return false;
         }
-        if ("https".equalsIgnoreCase(requestUri.getScheme())
-            && !"https".equalsIgnoreCase(redirectUri.getScheme())) {
+        if (requestUrl.isHttps() && !redirectUrl.isHttps()) {
             return false;
         }
-        String redirectOrigin = normalizedOrigin(redirectUri);
-        return redirectOrigin != null && allowedRedirectOrigins().contains(redirectOrigin);
+        return allowedRedirectOrigins().contains(normalizedOrigin(redirectUrl));
     }
 
     private Set<String> allowedRedirectOrigins() {
         Set<String> origins = new HashSet<>();
-        addOrigin(origins, properties.portalLoginUrl());
-        addOrigin(origins, properties.portalLoginPageUrl());
-        addOrigin(origins, properties.portalSsoLoginUrl());
-        addOrigin(origins, properties.ssoLoginUrl());
-        addOrigin(origins, properties.userInfoUrl());
+        origins.add(normalizedOrigin(properties.portalLoginUrl()));
+        origins.add(normalizedOrigin(properties.portalLoginPageUrl()));
+        origins.add(normalizedOrigin(properties.portalSsoLoginUrl()));
+        origins.add(normalizedOrigin(properties.ssoLoginUrl()));
+        origins.add(normalizedOrigin(properties.userInfoUrl()));
         return origins;
     }
 
-    private void addOrigin(Set<String> origins, URI uri) {
-        String origin = normalizedOrigin(uri);
-        if (origin != null) {
-            origins.add(origin);
-        }
-    }
-
     private String normalizedOrigin(URI uri) {
-        String scheme = uri.getScheme();
-        String host = uri.getHost();
-        if (scheme == null || host == null) {
-            return null;
-        }
-        String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
-        int port = uri.getPort();
-        if (port == -1) {
-            port = "https".equals(normalizedScheme) ? 443 : "http".equals(normalizedScheme) ? 80 : -1;
-        }
-        return normalizedScheme + "://" + host.toLowerCase(Locale.ROOT) + ":" + port;
+        int port = uri.getPort() >= 0
+            ? uri.getPort()
+            : "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+        return uri.getScheme().toLowerCase(Locale.ROOT)
+            + "://"
+            + uri.getHost().toLowerCase(Locale.ROOT)
+            + ":"
+            + port;
     }
 
-    private HttpRequest redirectedGetRequest(HttpRequest previousRequest, URI redirectUri) {
-        HttpRequest.Builder builder = HttpRequest.newBuilder(redirectUri).GET();
-        previousRequest.timeout().ifPresent(builder::timeout);
-        previousRequest.headers().map().forEach((name, values) ->
-            values.forEach(value -> builder.header(name, value))
-        );
-        return builder.build();
+    private String normalizedOrigin(HttpUrl url) {
+        return url.scheme() + "://" + url.host() + ":" + url.port();
+    }
+
+    private Request redirectedGetRequest(Request previousRequest, HttpUrl redirectUrl) {
+        return previousRequest.newBuilder()
+            .url(redirectUrl)
+            .removeHeader("Content-Type")
+            .removeHeader("Content-Length")
+            .get()
+            .build();
     }
 
     private void rejectRedirect(String stage, int status, String reason) {
@@ -322,102 +371,36 @@ public class SejongSsoClient implements SejongAuthenticator {
         throw SejongAuthenticationException.systemUnavailable();
     }
 
-    private boolean isPortalAuthenticationFailure(
-        HttpResponse<String> response,
-        String portalLoginResult
-    ) {
-        if (response.statusCode() == 401) {
-            return true;
-        }
-        boolean resultCanDescribeAuthentication = response.statusCode() == 403
-            || response.statusCode() >= 200 && response.statusCode() < 300;
-        return resultCanDescribeAuthentication
-            && portalLoginResult != null
-            && PORTAL_REJECTION_RESULTS.contains(portalLoginResult);
+    private boolean isSuccessful(int statusCode) {
+        return statusCode >= 200 && statusCode < 300;
     }
 
-    private String portalLoginResult(HttpResponse<String> response) {
-        if (response.body() == null) {
-            return null;
-        }
-        Matcher resultMatcher = PORTAL_LOGIN_RESULT_PATTERN.matcher(response.body());
-        return resultMatcher.find() ? resultMatcher.group(1) : null;
+    private boolean isRedirect(int statusCode) {
+        return REDIRECT_STATUS_CODES.contains(statusCode);
     }
 
-    private void requireSuccessful(String stage, HttpResponse<String> response) {
-        if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            log.warn(
-                "Sejong authentication upstream failure: stage={} status={}",
-                stage,
-                response.statusCode()
-            );
-            throw SejongAuthenticationException.systemUnavailable();
-        }
-    }
-
-    private boolean hasCookie(SejongHttpClientFactory.Session session, String expectedName) {
-        return session.cookieManager().getCookieStore().getCookies().stream()
-            .map(HttpCookie::getName)
-            .anyMatch(expectedName::equalsIgnoreCase);
-    }
-
-    private SejongIdentity parseIdentity(String responseBody) {
-        try {
-            JsonNode root = objectMapper.readTree(responseBody);
-            String providerUserId = requiredText(root, "dm_UserInfo", "INTG_USR_NO");
-            String runningSejong = requiredText(root, "dm_UserInfo", "RUNNING_SEJONG");
-            String loginDateTime = requiredText(root, "dm_UserInfoGam", "LOGIN_DT");
-            String organizationCode = requiredText(root, "dm_UserInfoSch", "ORGN_CLSF_CD");
-            if (providerUserId.isBlank()) {
-                throw SejongAuthenticationException.systemUnavailable();
-            }
-            return new SejongIdentity(
-                providerUserId.trim(),
-                runningSejong,
-                loginDateTime,
-                organizationCode
-            );
-        } catch (SejongAuthenticationException exception) {
-            throw exception;
-        } catch (JsonProcessingException | RuntimeException exception) {
-            log.warn(
-                "Sejong authentication upstream failure: stage=user-info-parse causeType={}",
-                exception.getClass().getSimpleName()
-            );
-            throw SejongAuthenticationException.systemUnavailable(exception);
-        }
-    }
-
-    private String requiredText(JsonNode root, String objectName, String fieldName) {
-        JsonNode object = root.get(objectName);
-        if (object == null || !object.isObject()) {
-            throw new IllegalStateException("SEJONG_RESPONSE_STRUCTURE_INVALID");
-        }
-        JsonNode value = object.get(fieldName);
-        if (value == null || !value.isValueNode() || value.isNull()) {
-            throw new IllegalStateException("SEJONG_RESPONSE_STRUCTURE_INVALID");
-        }
-        return value.asText();
-    }
-
-    private String emptyRunContext() {
+    private String encodedEmptyExecutionContext() {
         String json = "{\"_runIntgUsrNo\":\"\",\"_runPgLoginDt\":\"\",\"_runningSejong\":\"\"}";
-        String urlEncoded = formEncode(json);
+        String urlEncoded = URLEncoder.encode(json, StandardCharsets.UTF_8);
         return Base64.getEncoder().encodeToString(urlEncoded.getBytes(StandardCharsets.UTF_8));
     }
 
-    private String formEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
-
-    private HttpRequest.Builder browserRequestBuilder(URI uri) {
-        return HttpRequest.newBuilder(uri)
-            .timeout(properties.requestTimeout())
-            .header(HttpHeaders.USER_AGENT, BROWSER_USER_AGENT)
-            .header(HttpHeaders.ACCEPT_LANGUAGE, ACCEPT_LANGUAGE);
+    private Request.Builder browserRequestBuilder(URI uri) {
+        return new Request.Builder()
+            .url(uri.toString())
+            .header("User-Agent", BROWSER_USER_AGENT)
+            .header("Accept-Language", ACCEPT_LANGUAGE);
     }
 
     private String origin(URI uri) {
         return uri.getScheme() + "://" + uri.getAuthority();
+    }
+
+    private record ClientResponse(
+        int statusCode,
+        String body,
+        String location,
+        HttpUrl requestUrl
+    ) {
     }
 }

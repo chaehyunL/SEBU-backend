@@ -3,6 +3,7 @@ package com.sebu.backend.mypage.service;
 import com.sebu.backend.auth.domain.RefreshToken;
 import com.sebu.backend.auth.exception.RefreshTokenInvalidException;
 import com.sebu.backend.auth.repository.RefreshTokenRepository;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import com.sebu.backend.auth.service.AuthSessionService;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.repository.AppUserRepository;
@@ -86,7 +87,11 @@ class AccountServiceTest {
     void 회원_탈퇴후_기존_refreshToken으로_재발급할_수_없다() {
         // given
         AuthSessionService.LoginSession loginSession =
-                authSessionService.start("withdraw-refresh-test-user");
+                authSessionService.start(new SejongUserProfile(
+                        "29000001",
+                        "탈퇴테스트",
+                        "테스트학과"
+                ));
 
         Long userId = loginSession.userId();
         String refreshToken = loginSession.refreshToken();

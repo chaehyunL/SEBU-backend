@@ -73,7 +73,8 @@ class UserProfileMigrationTest {
 
         try (Connection connection = DriverManager.getConnection(url, USERNAME, PASSWORD)) {
             try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT email, name, grade, major_department_id, gpa_band, introduction, profile_updated_at
+                SELECT email, name, nickname, grade, major_department_id, gpa_band, introduction,
+                       profile_updated_at, version
                 FROM app_user
                 WHERE id = ?
                 """)) {
@@ -82,11 +83,13 @@ class UserProfileMigrationTest {
                     assertThat(result.next()).isTrue();
                     assertThat(result.getString("email")).isEqualTo("legacy-user@example.com");
                     assertThat(result.getString("name")).isNull();
+                    assertThat(result.getString("nickname")).isNull();
                     assertThat(result.getObject("grade")).isNull();
                     assertThat(result.getObject("major_department_id")).isNull();
                     assertThat(result.getString("gpa_band")).isNull();
                     assertThat(result.getString("introduction")).isEmpty();
                     assertThat(result.getObject("profile_updated_at")).isNull();
+                    assertThat(result.getLong("version")).isZero();
                 }
             }
 

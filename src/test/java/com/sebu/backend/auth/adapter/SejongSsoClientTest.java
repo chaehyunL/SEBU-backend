@@ -3,9 +3,11 @@ package com.sebu.backend.auth.adapter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sebu.backend.auth.config.SejongClientProperties;
 import com.sebu.backend.auth.port.SejongAuthenticationException;
-import com.sebu.backend.auth.port.SejongIdentity;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import okhttp3.Protocol;
+import org.conscrypt.Conscrypt;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,11 +21,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SejongSsoClientTest {
     private HttpServer server;
     private HttpServer foreignServer;
     private final AtomicInteger foreignRequestCount = new AtomicInteger();
+    private final AtomicInteger portalRedirectTargetRequests = new AtomicInteger();
     private String portalRequestBody;
     private String portalRequestReferer;
     private String portalRequestCookies;
@@ -45,16 +50,15 @@ class SejongSsoClientTest {
     }
 
     @Test
-    void usesOneCookieStoreThroughoutAFlowAndParsesIdentity() throws Exception {
+    void usesOneCookieStoreThroughoutAFlowAndParsesProfile() throws Exception {
         startServer(Scenario.SUCCESS);
         SejongSsoClient client = client(Duration.ofSeconds(1));
 
-        SejongIdentity identity = client.authenticate(" 21012345 ", "portal-password");
+        SejongUserProfile profile = client.authenticate(" 21012345 ", "portal-password");
 
-        assertThat(identity.providerUserId()).isEqualTo("21012345");
-        assertThat(identity.runningSejong()).isEqualTo("RUNNING");
-        assertThat(identity.loginDateTime()).isEqualTo("20260818120000");
-        assertThat(identity.organizationClassificationCode()).isEqualTo("STUDENT");
+        assertThat(profile.studentId()).isEqualTo("21012345");
+        assertThat(profile.name()).isEqualTo("홍길동");
+        assertThat(profile.departmentName()).isEqualTo("컴퓨터공학과");
         assertThat(portalFormValue("mainLogin")).isEqualTo("Y");
         assertThat(portalFormValue("id")).isEqualTo("21012345");
         assertThat(portalFormValue("password")).isEqualTo("portal-password");
@@ -69,7 +73,7 @@ class SejongSsoClientTest {
     }
 
     @Test
-    void createsAnIndependentCookieStoreForEveryLoginRequest() throws Exception {
+    void sharesConnectionsButSeparatesCookieStoresForEveryLoginRequest() throws Exception {
         startServer(Scenario.SUCCESS);
         SejongClientProperties properties = properties(Duration.ofSeconds(1));
         SejongHttpClientFactory factory = new SejongHttpClientFactory(properties);
@@ -77,17 +81,38 @@ class SejongSsoClientTest {
         SejongHttpClientFactory.Session first = factory.create();
         SejongHttpClientFactory.Session second = factory.create();
 
-        assertThat(first.legacyHttpClient()).isNotSameAs(second.legacyHttpClient());
-        assertThat(first.standardHttpClient()).isNotSameAs(second.standardHttpClient());
+        assertThat(first.httpClient()).isNotSameAs(second.httpClient());
         assertThat(first.cookieManager()).isNotSameAs(second.cookieManager());
-        assertThat(first.cookieManager().getCookieStore()).isNotSameAs(second.cookieManager().getCookieStore());
-        assertThat(first.legacyHttpClient().sslContext().getProvider().getName()).isEqualTo("Conscrypt");
-        assertThat(first.legacyHttpClient().sslParameters().getProtocols())
-            .containsExactly(SejongHttpClientFactory.SEJONG_TLS_PROTOCOL);
-        assertThat(first.legacyHttpClient().sslParameters().getCipherSuites())
-            .containsExactly(SejongHttpClientFactory.SEJONG_TLS_CIPHER_SUITE);
-        assertThat(first.legacyHttpClient().sslParameters().getEndpointIdentificationAlgorithm())
-            .isEqualTo("HTTPS");
+        assertThat(first.cookieManager().getCookieStore())
+            .isNotSameAs(second.cookieManager().getCookieStore());
+        assertThat(first.httpClient().connectionPool()).isSameAs(second.httpClient().connectionPool());
+        assertThat(first.httpClient().dispatcher()).isSameAs(second.httpClient().dispatcher());
+        assertThat(first.httpClient().protocols()).containsExactly(Protocol.HTTP_1_1);
+        assertThat(first.httpClient().connectionSpecs()).anySatisfy(specification -> {
+            assertThat(specification.tlsVersions())
+                .containsExactly(SejongHttpClientFactory.SEJONG_TLS_VERSION);
+            assertThat(specification.cipherSuites())
+                .containsExactly(SejongHttpClientFactory.SEJONG_LEGACY_CIPHER_SUITE);
+        });
+        assertThat(Conscrypt.isConscrypt(first.httpClient().sslSocketFactory())).isTrue();
+    }
+
+    @Test
+    void clearsSchoolCookiesWhenAuthenticationRequestEnds() throws Exception {
+        startServer(Scenario.SUCCESS);
+        SejongClientProperties properties = properties(Duration.ofSeconds(1));
+        SejongHttpClientFactory.Session session = new SejongHttpClientFactory(properties).create();
+        SejongHttpClientFactory factory = mock(SejongHttpClientFactory.class);
+        when(factory.create()).thenReturn(session);
+        SejongSsoClient client = new SejongSsoClient(
+            factory,
+            properties,
+            new SejongUserInfoParser(new ObjectMapper())
+        );
+
+        client.authenticate("21012345", "known-fake-password");
+
+        assertThat(session.cookieManager().getCookieStore().getCookies()).isEmpty();
     }
 
     @Test
@@ -127,7 +152,7 @@ class SejongSsoClientTest {
     }
 
     @Test
-    void doesNotFollowCredentialBearingRedirectToAnotherHost() throws Exception {
+    void neverFollowsCredentialBearingRedirectToAnotherHost() throws Exception {
         startForeignServer();
         startServer(Scenario.FOREIGN_REDIRECT);
         SejongSsoClient client = client(Duration.ofSeconds(1));
@@ -140,16 +165,72 @@ class SejongSsoClientTest {
     }
 
     @Test
+    void acceptsPortal302WithSessionCookieWithoutFollowingCredentialRedirect() throws Exception {
+        startServer(Scenario.PORTAL_REDIRECT_WITH_SESSION);
+        SejongSsoClient client = client(Duration.ofSeconds(1));
+
+        SejongUserProfile profile = client.authenticate("21012345", "portal-password");
+
+        assertThat(profile.studentId()).isEqualTo("21012345");
+        assertThat(portalRedirectTargetRequests).hasValue(0);
+    }
+
+    @Test
+    void neverRepostsCredentialsFor307PortalRedirect() throws Exception {
+        startServer(Scenario.PORTAL_307_REDIRECT_WITH_SESSION);
+        SejongSsoClient client = client(Duration.ofSeconds(1));
+
+        SejongUserProfile profile = client.authenticate("21012345", "sensitive-password");
+
+        assertThat(profile.studentId()).isEqualTo("21012345");
+        assertThat(portalRedirectTargetRequests).hasValue(0);
+    }
+
+    @Test
     void followsAllowedRedirectsForNonCredentialGetSteps() throws Exception {
         startServer(Scenario.ALLOWED_GET_REDIRECTS);
         SejongSsoClient client = client(Duration.ofSeconds(1));
 
-        SejongIdentity identity = client.authenticate("21012345", "password");
+        SejongUserProfile profile = client.authenticate("21012345", "password");
 
-        assertThat(identity.providerUserId()).isEqualTo("21012345");
+        assertThat(profile.studentId()).isEqualTo("21012345");
         assertThat(loginPageRedirectReached).isTrue();
         assertThat(portalSsoRedirectReached).isTrue();
         assertThat(ssoRedirectReached).isTrue();
+    }
+
+    @Test
+    void doesNotBufferLargeChunkedBodiesFromIntermediateSsoSteps() throws Exception {
+        startServer(Scenario.OVERSIZED_INTERMEDIATE_SSO_RESPONSES);
+        SejongSsoClient client = client(Duration.ofSeconds(1));
+
+        SejongUserProfile profile = client.authenticate("21012345", "password");
+
+        assertThat(profile.studentId()).isEqualTo("21012345");
+    }
+
+    @Test
+    void rejectsEmptyPortalSessionCookie() throws Exception {
+        startServer(Scenario.EMPTY_PORTAL_SESSION);
+        SejongSsoClient client = client(Duration.ofSeconds(1));
+
+        assertThatThrownBy(() -> client.authenticate("21012345", "password"))
+            .isInstanceOfSatisfying(SejongAuthenticationException.class, exception ->
+                assertThat(exception.getReason())
+                    .isEqualTo(SejongAuthenticationException.Reason.SYSTEM_UNAVAILABLE));
+    }
+
+    @Test
+    void refusesSsoRedirectsOutsideConfiguredSchoolOrigins() throws Exception {
+        startServer(Scenario.CROSS_ORIGIN_SSO_REDIRECT);
+        SejongSsoClient client = client(Duration.ofSeconds(1));
+
+        assertThatThrownBy(() -> client.authenticate("21012345", "sensitive-password"))
+            .isInstanceOfSatisfying(SejongAuthenticationException.class, exception -> {
+                assertThat(exception.getReason())
+                    .isEqualTo(SejongAuthenticationException.Reason.SYSTEM_UNAVAILABLE);
+                assertThat(exception.getMessage()).doesNotContain("sensitive-password");
+            });
     }
 
     @Test
@@ -164,25 +245,36 @@ class SejongSsoClientTest {
     }
 
     @Test
-    void treatsMissingIntegratedUserNumberAsSystemUnavailable() throws Exception {
+    void treatsMissingIntegratedUserNumberAsInvalidResponse() throws Exception {
         startServer(Scenario.MISSING_USER_ID);
         SejongSsoClient client = client(Duration.ofSeconds(1));
 
         assertThatThrownBy(() -> client.authenticate("21012345", "password"))
             .isInstanceOfSatisfying(SejongAuthenticationException.class, exception ->
                 assertThat(exception.getReason())
-                    .isEqualTo(SejongAuthenticationException.Reason.SYSTEM_UNAVAILABLE));
+                    .isEqualTo(SejongAuthenticationException.Reason.RESPONSE_INVALID));
     }
 
     @Test
-    void treatsMalformedUserInfoAsSystemUnavailable() throws Exception {
+    void treatsMalformedUserInfoAsInvalidResponse() throws Exception {
         startServer(Scenario.MALFORMED_USER_INFO);
         SejongSsoClient client = client(Duration.ofSeconds(1));
 
         assertThatThrownBy(() -> client.authenticate("21012345", "password"))
             .isInstanceOfSatisfying(SejongAuthenticationException.class, exception ->
                 assertThat(exception.getReason())
-                    .isEqualTo(SejongAuthenticationException.Reason.SYSTEM_UNAVAILABLE));
+                    .isEqualTo(SejongAuthenticationException.Reason.RESPONSE_INVALID));
+    }
+
+    @Test
+    void rejectsUserInfoResponseLargerThan64KiB() throws Exception {
+        startServer(Scenario.OVERSIZED_USER_INFO);
+        SejongSsoClient client = client(Duration.ofSeconds(1));
+
+        assertThatThrownBy(() -> client.authenticate("21012345", "password"))
+            .isInstanceOfSatisfying(SejongAuthenticationException.class, exception ->
+                assertThat(exception.getReason())
+                    .isEqualTo(SejongAuthenticationException.Reason.RESPONSE_INVALID));
     }
 
     @Test
@@ -201,7 +293,7 @@ class SejongSsoClientTest {
         return new SejongSsoClient(
             new SejongHttpClientFactory(properties),
             properties,
-            new ObjectMapper()
+            new SejongUserInfoParser(new ObjectMapper())
         );
     }
 
@@ -238,6 +330,11 @@ class SejongSsoClientTest {
             respond(exchange, 200, "sso");
         });
         server.createContext("/user-info", exchange -> handleUserInfo(exchange, scenario));
+        server.createContext("/portal-redirect-target", exchange -> {
+            portalRedirectTargetRequests.incrementAndGet();
+            exchange.getRequestBody().readAllBytes();
+            respond(exchange, 500, "portal credentials must not be reposted");
+        });
         server.start();
     }
 
@@ -258,6 +355,7 @@ class SejongSsoClientTest {
         portalRequestCookies = exchange.getRequestHeaders().getFirst("Cookie");
         portalRequestUserAgent = exchange.getRequestHeaders().getFirst("User-Agent");
         portalRequestOrigin = exchange.getRequestHeaders().getFirst("Origin");
+
         if (scenario == Scenario.SLOW_PORTAL) {
             try {
                 Thread.sleep(200);
@@ -279,6 +377,14 @@ class SejongSsoClientTest {
                 "http://localhost:" + foreignServer.getAddress().getPort() + "/capture"
             );
             respond(exchange, 307, "redirect");
+            return;
+        }
+        if (scenario == Scenario.PORTAL_REDIRECT_WITH_SESSION
+            || scenario == Scenario.PORTAL_307_REDIRECT_WITH_SESSION) {
+            exchange.getResponseHeaders().add("Set-Cookie", "SSOTOKEN=portal-session; Path=/; HttpOnly");
+            exchange.getResponseHeaders().add("Location", "/portal-redirect-target");
+            int status = scenario == Scenario.PORTAL_REDIRECT_WITH_SESSION ? 302 : 307;
+            respond(exchange, status, "redirect");
             return;
         }
         if (scenario == Scenario.PORTAL_FORBIDDEN) {
@@ -305,11 +411,16 @@ class SejongSsoClientTest {
             return;
         }
         if (scenario != Scenario.NO_PORTAL_SESSION) {
-            exchange.getResponseHeaders().add("Set-Cookie", "SSOTOKEN=portal-session; Path=/; HttpOnly");
+            String value = scenario == Scenario.EMPTY_PORTAL_SESSION ? "" : "portal-session";
+            exchange.getResponseHeaders().add("Set-Cookie", "SSOTOKEN=" + value + "; Path=/; HttpOnly");
         }
         if (scenario == Scenario.ALLOWED_GET_REDIRECTS) {
             exchange.getResponseHeaders().add("Location", "/portal-sso-final");
             respond(exchange, 302, "redirect");
+            return;
+        }
+        if (scenario == Scenario.OVERSIZED_INTERMEDIATE_SSO_RESPONSES) {
+            respondChunked(exchange, 200, "x".repeat(64 * 1024 + 1));
             return;
         }
         respond(exchange, 200, "portal sso");
@@ -321,10 +432,19 @@ class SejongSsoClientTest {
             respond(exchange, 401, "missing portal session");
             return;
         }
+        if (scenario == Scenario.CROSS_ORIGIN_SSO_REDIRECT) {
+            exchange.getResponseHeaders().add("Location", "http://127.0.0.1:1/session-sink");
+            respond(exchange, 307, "redirect");
+            return;
+        }
         exchange.getResponseHeaders().add("Set-Cookie", "JSESSIONID=sjpt-session; Path=/; HttpOnly");
         if (scenario == Scenario.ALLOWED_GET_REDIRECTS) {
             exchange.getResponseHeaders().add("Location", "/sso-final");
             respond(exchange, 303, "redirect");
+            return;
+        }
+        if (scenario == Scenario.OVERSIZED_INTERMEDIATE_SSO_RESPONSES) {
+            respondChunked(exchange, 200, "x".repeat(64 * 1024 + 1));
             return;
         }
         respond(exchange, 200, "sso");
@@ -332,7 +452,9 @@ class SejongSsoClientTest {
 
     private void handleUserInfo(HttpExchange exchange, Scenario scenario) throws IOException {
         String cookies = exchange.getRequestHeaders().getFirst("Cookie");
-        if (cookies == null || !cookies.contains("SSOTOKEN=portal-session") || !cookies.contains("JSESSIONID=sjpt-session")) {
+        if (cookies == null
+            || !cookies.contains("SSOTOKEN=portal-session")
+            || !cookies.contains("JSESSIONID=sjpt-session")) {
             respond(exchange, 401, "missing session");
             return;
         }
@@ -340,11 +462,17 @@ class SejongSsoClientTest {
             respond(exchange, 200, "not-json");
             return;
         }
-        String userIdField = scenario == Scenario.MISSING_USER_ID ? "" : "\"INTG_USR_NO\":\"21012345\",";
+        if (scenario == Scenario.OVERSIZED_USER_INFO) {
+            respond(exchange, 200, "x".repeat(64 * 1024 + 1));
+            return;
+        }
+        String userIdField = scenario == Scenario.MISSING_USER_ID
+            ? ""
+            : "\"INTG_USR_NO\":\"21012345\",";
         respond(exchange, 200, """
             {
-              "dm_UserInfo": {%s "RUNNING_SEJONG":"RUNNING"},
-              "dm_UserInfoGam": {"LOGIN_DT":"20260818120000"},
+              "dm_UserInfo": {%s "INTG_KOR_NM":"홍길동", "RUNNING_SEJONG":"RUNNING"},
+              "dm_UserInfoGam": {"LOGIN_DT":"20260818120000", "DEPT_NM":"컴퓨터공학과"},
               "dm_UserInfoSch": {"ORGN_CLSF_CD":"STUDENT"}
             }
             """.formatted(userIdField));
@@ -355,6 +483,13 @@ class SejongSsoClientTest {
         exchange.sendResponseHeaders(status, bytes.length);
         try (var output = exchange.getResponseBody()) {
             output.write(bytes);
+        }
+    }
+
+    private void respondChunked(HttpExchange exchange, int status, String body) throws IOException {
+        exchange.sendResponseHeaders(status, 0);
+        try (var output = exchange.getResponseBody()) {
+            output.write(body.getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -376,11 +511,17 @@ class SejongSsoClientTest {
         AUTHENTICATION_FAILED,
         UNKNOWN_LOGIN_RESULT,
         FOREIGN_REDIRECT,
+        PORTAL_REDIRECT_WITH_SESSION,
+        PORTAL_307_REDIRECT_WITH_SESSION,
         ALLOWED_GET_REDIRECTS,
+        OVERSIZED_INTERMEDIATE_SSO_RESPONSES,
         PORTAL_FORBIDDEN,
         NO_PORTAL_SESSION,
+        EMPTY_PORTAL_SESSION,
+        CROSS_ORIGIN_SSO_REDIRECT,
         MISSING_USER_ID,
         MALFORMED_USER_INFO,
+        OVERSIZED_USER_INFO,
         SLOW_PORTAL
     }
 }

@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,11 +54,17 @@ public class AppUser extends BaseTimeEntity {
     @Column(length = 30)
     private String name;
 
+    @Column(length = 30)
+    private String nickname;
+
     private Short grade;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "major_department_id")
     private Department majorDepartment;
+
+    @Column(name = "sejong_department_name", length = 100)
+    private String sejongDepartmentName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "gpa_band", length = 20)
@@ -81,6 +88,10 @@ public class AppUser extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Version
+    @Column(nullable = false)
+    private long version;
+
     public AppUser(String email) {
         this.email = normalizeEmail(email);
     }
@@ -92,6 +103,84 @@ public class AppUser extends BaseTimeEntity {
 
     public static AppUser sejong(String providerUserId) {
         return new AppUser(AuthProvider.SEJONG, providerUserId);
+    }
+
+    public static AppUser sejong(
+        String providerUserId,
+        String name,
+        String departmentName,
+        Department department,
+        LocalDateTime profileUpdatedAt
+    ) {
+        AppUser user = new AppUser(AuthProvider.SEJONG, providerUserId);
+        user.applySejongProfile(name, departmentName, department, profileUpdatedAt);
+        return user;
+    }
+
+    public boolean applySejongProfile(
+        String name,
+        String departmentName,
+        Department department,
+        LocalDateTime changedAt
+    ) {
+        String normalizedName = requireName(name);
+        String normalizedDepartmentName = requireDepartmentName(departmentName);
+        if (Objects.equals(this.name, normalizedName)
+            && Objects.equals(this.sejongDepartmentName, normalizedDepartmentName)
+            && Objects.equals(this.majorDepartment, department)) {
+            return false;
+        }
+        this.name = normalizedName;
+        this.sejongDepartmentName = normalizedDepartmentName;
+        this.majorDepartment = department;
+        this.profileUpdatedAt = Objects.requireNonNull(changedAt, "PROFILE_UPDATED_AT_REQUIRED");
+        refreshProfileCompleted();
+        return true;
+    }
+
+    public void updateGrade(int grade, LocalDateTime changedAt) {
+        if (grade < 1 || grade > 4) {
+            throw new IllegalArgumentException("GRADE_OUT_OF_RANGE");
+        }
+        short normalizedGrade = (short) grade;
+        if (Objects.equals(this.grade, normalizedGrade)) {
+            return;
+        }
+        this.grade = normalizedGrade;
+        this.profileUpdatedAt = Objects.requireNonNull(changedAt, "PROFILE_UPDATED_AT_REQUIRED");
+        refreshProfileCompleted();
+    }
+
+    private void refreshProfileCompleted() {
+        this.profileCompleted = name != null
+            && sejongDepartmentName != null
+            && grade != null;
+    }
+
+    private static String requireName(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("USER_NAME_REQUIRED");
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 30) {
+            throw new IllegalArgumentException("USER_NAME_TOO_LONG");
+        }
+        return normalized;
+    }
+
+    private static String requireDepartmentName(String value) {
+        return requireProfileText(value, 100, "SEJONG_DEPARTMENT_NAME");
+    }
+
+    private static String requireProfileText(String value, int maxLength, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + "_REQUIRED");
+        }
+        String normalized = value.trim();
+        if (normalized.length() > maxLength) {
+            throw new IllegalArgumentException(field + "_TOO_LONG");
+        }
+        return normalized;
     }
 
     private static String normalizeEmail(String value) {
@@ -109,25 +198,24 @@ public class AppUser extends BaseTimeEntity {
     }
 
     public void updateProfile(
-            String name,
+            String nickname,
             Short grade,
-            Department majorDepartment,
             GpaBand gpaBand,
             String introduction,
             LocalDateTime moderatedAt,
             String policyVersion,
             String providerVersion
     ) {
+        String normalizedNickname = normalizeNickname(nickname);
+        requireGrade(grade);
         boolean changed =
-                !Objects.equals(this.name, name)
+                !Objects.equals(this.nickname, normalizedNickname)
                         || !Objects.equals(this.grade, grade)
-                        || !Objects.equals(this.majorDepartment, majorDepartment)
                         || !Objects.equals(this.gpaBand, gpaBand)
                         || !Objects.equals(this.introduction, introduction);
 
-        this.name = name;
+        this.nickname = normalizedNickname;
         this.grade = grade;
-        this.majorDepartment = majorDepartment;
         this.gpaBand = gpaBand;
         this.introduction = introduction;
 
@@ -135,13 +223,27 @@ public class AppUser extends BaseTimeEntity {
         this.introductionPolicyVersion = policyVersion;
         this.introductionProviderVersion = providerVersion;
 
-        this.profileCompleted =
-                name != null
-                        && grade != null
-                        && majorDepartment != null;
+        refreshProfileCompleted();
 
         if (changed) {
-            this.profileUpdatedAt = LocalDateTime.now();
+            this.profileUpdatedAt = Objects.requireNonNull(moderatedAt, "PROFILE_UPDATED_AT_REQUIRED");
+        }
+    }
+
+    private static String normalizeNickname(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 30) {
+            throw new IllegalArgumentException("NICKNAME_TOO_LONG");
+        }
+        return normalized;
+    }
+
+    private static void requireGrade(Short grade) {
+        if (grade == null || grade < 1 || grade > 4) {
+            throw new IllegalArgumentException("GRADE_OUT_OF_RANGE");
         }
     }
 

@@ -3,9 +3,11 @@ package com.sebu.backend.auth.service;
 import com.sebu.backend.auth.config.TokenProperties;
 import com.sebu.backend.auth.domain.RefreshToken;
 import com.sebu.backend.auth.exception.RefreshTokenInvalidException;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import com.sebu.backend.auth.repository.RefreshTokenRepository;
 import com.sebu.backend.auth.token.JwtAccessTokenService;
 import com.sebu.backend.auth.token.RefreshTokenGenerator;
+import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.domain.AuthProvider;
 import com.sebu.backend.user.repository.AppUserRepository;
@@ -25,6 +27,7 @@ public class AuthSessionService {
     private final RefreshTokenGenerator refreshTokenGenerator;
     private final JwtAccessTokenService accessTokenService;
     private final TokenProperties properties;
+    private final SejongDepartmentResolver departmentResolver;
     private final Clock clock;
 
     @Autowired
@@ -33,7 +36,8 @@ public class AuthSessionService {
         RefreshTokenRepository refreshTokenRepository,
         RefreshTokenGenerator refreshTokenGenerator,
         JwtAccessTokenService accessTokenService,
-        TokenProperties properties
+        TokenProperties properties,
+        SejongDepartmentResolver departmentResolver
     ) {
         this(
             appUserRepository,
@@ -41,6 +45,7 @@ public class AuthSessionService {
             refreshTokenGenerator,
             accessTokenService,
             properties,
+            departmentResolver,
             Clock.systemUTC()
         );
     }
@@ -51,6 +56,7 @@ public class AuthSessionService {
         RefreshTokenGenerator refreshTokenGenerator,
         JwtAccessTokenService accessTokenService,
         TokenProperties properties,
+        SejongDepartmentResolver departmentResolver,
         Clock clock
     ) {
         this.appUserRepository = appUserRepository;
@@ -58,26 +64,51 @@ public class AuthSessionService {
         this.refreshTokenGenerator = refreshTokenGenerator;
         this.accessTokenService = accessTokenService;
         this.properties = properties;
+        this.departmentResolver = departmentResolver;
         this.clock = clock;
     }
 
     @Transactional
-    public LoginSession start(String providerUserId) {
+    public LoginSession start(SejongUserProfile profile) {
         AppUser user = appUserRepository
-            .findByProviderAndProviderUserId(AuthProvider.SEJONG, providerUserId)
+            .findByProviderAndProviderUserId(AuthProvider.SEJONG, profile.studentId())
             .orElse(null);
         boolean newUser = user == null;
+        LocalDateTime now = now();
+        Department department = departmentResolver.resolve(profile.departmentName());
         if (newUser) {
-            user = appUserRepository.save(AppUser.sejong(providerUserId));
+            user = appUserRepository.save(AppUser.sejong(
+                profile.studentId(),
+                profile.name(),
+                profile.departmentName(),
+                department,
+                now
+            ));
+        } else {
+            user.applySejongProfile(
+                profile.name(),
+                profile.departmentName(),
+                department,
+                now
+            );
         }
-
-        return issueLoginSession(user, newUser, now());
+        return issueLoginSession(user, newUser, now);
     }
 
     @Transactional
-    public Optional<LoginSession> startExisting(String providerUserId) {
-        return appUserRepository.findByProviderAndProviderUserId(AuthProvider.SEJONG, providerUserId)
-            .map(user -> issueLoginSession(user, false, now()));
+    public Optional<LoginSession> startExisting(SejongUserProfile profile) {
+        LocalDateTime now = now();
+        Department department = departmentResolver.resolve(profile.departmentName());
+        return appUserRepository.findByProviderAndProviderUserId(AuthProvider.SEJONG, profile.studentId())
+            .map(user -> {
+                user.applySejongProfile(
+                    profile.name(),
+                    profile.departmentName(),
+                    department,
+                    now
+                );
+                return issueLoginSession(user, false, now);
+            });
     }
 
     @Transactional

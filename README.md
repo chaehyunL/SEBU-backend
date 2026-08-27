@@ -155,3 +155,7 @@ SPRING_PROFILES_ACTIVE=prod
 
 JWT Access Token 서명 키는 코드나 설정 파일에 저장하지 않고 `JWT_SECRET_BASE64` 환경 변수로 전달합니다.
 로컬 실행에서도 같은 환경 변수가 필요하며, 테스트는 `src/test/resources/application.yml`의 테스트 전용 키를 사용합니다.
+
+운영 환경에서는 TLS를 종료하는 리버스 프록시만 외부에 공개하고 백엔드 8080 포트는 프록시에서만 접근할 수 있게 제한합니다. `prod` 프로필은 `X-Forwarded-Proto`를 기준으로 원래 요청이 HTTP이면 HTTPS로 전환하고, `X-Forwarded-For`를 반영한 클라이언트 IP를 로그인 요청 제한에 사용합니다.
+
+프록시는 클라이언트가 보낸 `X-Forwarded-For`와 `X-Forwarded-Proto`를 그대로 전달하지 말고 반드시 덮어써야 합니다. 이 조건과 백엔드 직접 접근 차단이 지켜지지 않으면 전달 헤더를 위조해 IP 제한을 우회할 수 있습니다.

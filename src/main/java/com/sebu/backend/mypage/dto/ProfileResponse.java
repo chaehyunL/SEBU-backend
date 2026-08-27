@@ -6,14 +6,15 @@ import java.time.LocalDateTime;
 
 public record ProfileResponse(
         String name,
+        String nickname,
         Short grade,
-        Major major,
+        Department department,
         GpaBand gpaBand,
         String introduction,
         boolean profileCompleted,
         LocalDateTime profileUpdatedAt
 ) {
-    public record Major(
+    public record Department(
             String id,
             String name
     ) {

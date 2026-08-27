@@ -14,6 +14,7 @@ public record LaboratoriesResult(List<LaboratoryResult> laboratories) {
         ProfessorResult professor,
         CollegeResult college,
         DepartmentResult department,
+        List<AffiliationResult> affiliations,
         List<String> researchFields,
         RecruitmentStatus recruitmentStatus,
         long bookmarkCount,
@@ -28,5 +29,11 @@ public record LaboratoriesResult(List<LaboratoryResult> laboratories) {
     }
 
     public record DepartmentResult(Long id, String name) {
+    }
+
+    public record AffiliationResult(
+        CollegeResult college,
+        DepartmentResult department
+    ) {
     }
 }

@@ -123,6 +123,250 @@ class ProfessorCandidatePromotionServiceTest {
     }
 
     @Test
+    void sameProfessorAcrossDepartmentsSharesCanonicalTargetsAndAffiliationsIdempotently() {
+        CrawlSource firstSource = newSource();
+        CrawlSource secondSource = newSource();
+        String suffix = uniqueSuffix();
+        String professorName = "겸임" + suffix;
+        String email = "affiliated-" + suffix + "@sejong.ac.kr";
+        String laboratoryName = "겸임 통합 연구실 " + suffix;
+        ProfessorCrawlCandidate first = approvedCandidate(
+            firstSource,
+            data(professorName, email, laboratoryName)
+        );
+        ProfessorCrawlCandidate second = approvedCandidate(
+            secondSource,
+            data(professorName, email, laboratoryName)
+        );
+
+        PromotionResult firstSourceRun = promotionService.promote(firstSource.getId());
+        PromotionResult secondSourceRun = promotionService.promote(secondSource.getId());
+
+        assertThat(firstSourceRun.candidateCount()).isOne();
+        assertThat(firstSourceRun.createdCount()).isOne();
+        assertThat(firstSourceRun.failures()).isEmpty();
+        assertThat(secondSourceRun.candidateCount()).isOne();
+        assertThat(secondSourceRun.failures()).isEmpty();
+        assertThat(secondSourceRun.updatedCount()).isOne();
+        assertThat(countProfessorByEmail(email)).isOne();
+        Map<String, Object> firstPromotion = promotionColumns(first.getId());
+        Map<String, Object> secondPromotion = promotionColumns(second.getId());
+        assertThat(secondPromotion.get("promoted_professor_id"))
+            .isEqualTo(firstPromotion.get("promoted_professor_id"));
+        assertThat(secondPromotion.get("promoted_laboratory_id"))
+            .isEqualTo(firstPromotion.get("promoted_laboratory_id"));
+
+        Long professorId = ((Number) firstPromotion.get("promoted_professor_id")).longValue();
+        Long laboratoryId = ((Number) firstPromotion.get("promoted_laboratory_id")).longValue();
+        assertThat(countProfessorAffiliations(professorId)).isEqualTo(2L);
+        assertThat(countLaboratoryAffiliations(laboratoryId)).isEqualTo(2L);
+
+        PromotionResult firstIdempotentRun = promotionService.promote(firstSource.getId());
+        PromotionResult secondIdempotentRun = promotionService.promote(secondSource.getId());
+
+        assertThat(firstIdempotentRun.candidateCount()).isZero();
+        assertThat(firstIdempotentRun.failures()).isEmpty();
+        assertThat(secondIdempotentRun.candidateCount()).isZero();
+        assertThat(secondIdempotentRun.failures()).isEmpty();
+        assertThat(countProfessorByEmail(email)).isOne();
+        assertThat(countProfessorAffiliations(professorId)).isEqualTo(2L);
+        assertThat(countLaboratoryAffiliations(laboratoryId)).isEqualTo(2L);
+    }
+
+    @Test
+    void departmentSpecificPositionsAreStoredWithoutOverwritingCanonicalPosition() {
+        CrawlSource primarySource = newSource();
+        CrawlSource affiliatedSource = newSource();
+        String suffix = uniqueSuffix();
+        String professorName = "직위겸임" + suffix;
+        String email = "position-affiliation-" + suffix + "@sejong.ac.kr";
+        String laboratoryName = "직위 겸임 연구실 " + suffix;
+        approvedCandidate(
+            primarySource,
+            data(professorName, "교수", email, laboratoryName)
+        );
+        approvedCandidate(
+            affiliatedSource,
+            data(professorName, "겸임교수", email, laboratoryName)
+        );
+
+        PromotionResult primaryResult = promotionService.promote(primarySource.getId());
+        PromotionResult affiliatedResult = promotionService.promote(affiliatedSource.getId());
+
+        assertThat(primaryResult.createdCount()).isOne();
+        assertThat(primaryResult.failures()).isEmpty();
+        assertThat(affiliatedResult.updatedCount()).isOne();
+        assertThat(affiliatedResult.failures()).isEmpty();
+        Long professorId = jdbcTemplate.queryForObject(
+            "SELECT id FROM professor WHERE email = ?",
+            Long.class,
+            email
+        );
+        assertThat(jdbcTemplate.queryForObject(
+            "SELECT position FROM professor WHERE id = ?",
+            String.class,
+            professorId
+        )).isEqualTo("교수");
+        assertThat(professorAffiliationPosition(
+            professorId,
+            primarySource.getDepartment().getId()
+        )).isEqualTo("교수");
+        assertThat(professorAffiliationPosition(
+            professorId,
+            affiliatedSource.getDepartment().getId()
+        )).isEqualTo("겸임교수");
+    }
+
+    @Test
+    void officialLaboratoryProfileReplacesGeneratedProfileWhenCanonicalProfessorIsShared() {
+        CrawlSource generatedSource = newSource();
+        CrawlSource officialSource = newSource();
+        String suffix = uniqueSuffix();
+        String professorName = "공식우선" + suffix;
+        String email = "official-priority-" + suffix + "@sejong.ac.kr";
+        ProfessorCrawlCandidate generated = approvedCandidate(
+            generatedSource,
+            data(professorName, email, null)
+        );
+        ProfessorCrawlCandidate official = approvedCandidate(
+            officialSource,
+            data(professorName, email, "공식 통합 연구실 " + suffix)
+        );
+
+        PromotionResult generatedResult = promotionService.promote(generatedSource.getId());
+        PromotionResult officialResult = promotionService.promote(officialSource.getId());
+
+        assertThat(generatedResult.createdCount()).isOne();
+        assertThat(officialResult.updatedCount()).isOne();
+        assertThat(generatedResult.failures()).isEmpty();
+        assertThat(officialResult.failures()).isEmpty();
+        assertLaboratory(
+            official.getId(),
+            "공식 통합 연구실 " + suffix,
+            "OFFICIAL",
+            "UNKNOWN"
+        );
+        assertThat(laboratoryId(official.getId())).isEqualTo(laboratoryId(generated.getId()));
+        assertThat(countLaboratoryAffiliations(laboratoryId(official.getId()))).isEqualTo(2L);
+    }
+
+    @Test
+    void generatedProfileDoesNotOverwriteExistingOfficialLaboratoryProfile() {
+        CrawlSource officialSource = newSource();
+        CrawlSource generatedSource = newSource();
+        String suffix = uniqueSuffix();
+        String professorName = "공식보존" + suffix;
+        String email = "official-preserved-" + suffix + "@sejong.ac.kr";
+        String officialLaboratoryName = "보존할 공식 연구실 " + suffix;
+        ProfessorCrawlCandidate official = approvedCandidate(
+            officialSource,
+            data(professorName, email, officialLaboratoryName)
+        );
+        ProfessorCrawlCandidate generated = approvedCandidate(
+            generatedSource,
+            data(professorName, email, null)
+        );
+
+        PromotionResult officialResult = promotionService.promote(officialSource.getId());
+        PromotionResult generatedResult = promotionService.promote(generatedSource.getId());
+
+        assertThat(officialResult.createdCount()).isOne();
+        assertThat(generatedResult.updatedCount()).isOne();
+        assertThat(officialResult.failures()).isEmpty();
+        assertThat(generatedResult.failures()).isEmpty();
+        assertLaboratory(
+            generated.getId(),
+            officialLaboratoryName,
+            "OFFICIAL",
+            "UNKNOWN"
+        );
+        assertThat(laboratoryId(generated.getId())).isEqualTo(laboratoryId(official.getId()));
+        assertThat(countLaboratoryAffiliations(laboratoryId(generated.getId()))).isEqualTo(2L);
+    }
+
+    @Test
+    void reapprovedPrimaryCandidateDoesNotDowngradeSharedOfficialLaboratoryName() {
+        CrawlSource primarySource = newSource();
+        CrawlSource officialSource = newSource();
+        String suffix = uniqueSuffix();
+        String professorName = "재검수보존" + suffix;
+        String email = "refresh-preserved-" + suffix + "@sejong.ac.kr";
+        String officialLaboratoryName = "재검수 보존 연구실 " + suffix;
+        ProfessorCrawlCandidate primary = approvedCandidate(
+            primarySource,
+            data(professorName, email, null)
+        );
+        ProfessorCrawlCandidate official = approvedCandidate(
+            officialSource,
+            data(professorName, email, officialLaboratoryName)
+        );
+        assertThat(promotionService.promote(primarySource.getId()).createdCount()).isOne();
+        assertThat(promotionService.promote(officialSource.getId()).updatedCount()).isOne();
+
+        ProfessorCrawlCandidate reviewedAgain = candidateRepository.findById(primary.getId())
+            .orElseThrow();
+        LocalDateTime recrawledAt = LocalDateTime.now().plusMinutes(1);
+        reviewedAgain.refreshFromCrawl(
+            new ProfessorCrawlData(
+                professorName,
+                "교수",
+                email,
+                null,
+                "대표 학과에서 갱신한 연구 소개",
+                "https://example.com/refresh-preserved-" + suffix
+            ),
+            CrawlSourceProvenance.from(primarySource),
+            recrawledAt
+        );
+        reviewedAgain.approve("reviewer", "대표 학과 재검수", recrawledAt.plusMinutes(1));
+        candidateRepository.saveAndFlush(reviewedAgain);
+
+        PromotionResult refreshed = promotionService.promote(primarySource.getId());
+
+        assertThat(refreshed.updatedCount()).isOne();
+        assertThat(refreshed.failures()).isEmpty();
+        assertLaboratory(
+            official.getId(),
+            officialLaboratoryName,
+            "OFFICIAL",
+            "UNKNOWN"
+        );
+    }
+
+    @Test
+    void sameEmailWithDifferentProfessorIdentityIsRejectedWithoutChangingCanonicalData() {
+        CrawlSource canonicalSource = newSource();
+        CrawlSource conflictingSource = newSource();
+        String suffix = uniqueSuffix();
+        String email = "identity-conflict-" + suffix + "@sejong.ac.kr";
+        ProfessorCrawlCandidate canonical = approvedCandidate(
+            canonicalSource,
+            data("기존교수" + suffix, email, "기존 연구실 " + suffix)
+        );
+        ProfessorCrawlCandidate conflict = approvedCandidate(
+            conflictingSource,
+            data("다른교수" + suffix, email, "다른 연구실 " + suffix)
+        );
+        assertThat(promotionService.promote(canonicalSource.getId()).createdCount()).isOne();
+
+        PromotionResult conflictResult = promotionService.promote(conflictingSource.getId());
+
+        assertThat(conflictResult.createdCount()).isZero();
+        assertThat(conflictResult.updatedCount()).isZero();
+        assertThat(conflictResult.failedCount()).isOne();
+        assertThat(conflictResult.failures().getFirst().candidateId()).isEqualTo(conflict.getId());
+        assertThat(conflictResult.failures().getFirst().reason())
+            .isEqualTo("PROFESSOR_IDENTITY_CONFLICT");
+        assertThat(promotionColumns(conflict.getId()).get("promoted_at")).isNull();
+        assertThat(countProfessorByEmail(email)).isOne();
+        assertThat(laboratoryId(canonical.getId())).isNotNull();
+        assertThat(countProfessorAffiliations(
+            ((Number) promotionColumns(canonical.getId()).get("promoted_professor_id")).longValue()
+        )).isOne();
+        assertThat(countLaboratoryAffiliations(laboratoryId(canonical.getId()))).isOne();
+    }
+
+    @Test
     void reappliedReviewUpdatesOwnedFieldsButPreservesManualRecruitmentStatus() {
         CrawlSource source = newSource();
         String suffix = uniqueSuffix();
@@ -207,7 +451,7 @@ class ProfessorCandidatePromotionServiceTest {
         assertThat(result.createdCount()).isOne();
         assertThat(result.failedCount()).isOne();
         assertThat(result.failures().getFirst().candidateId()).isEqualTo(conflict.getId());
-        assertThat(result.failures().getFirst().reason()).isEqualTo("PROFESSOR_EMAIL_CONFLICT");
+        assertThat(result.failures().getFirst().reason()).isEqualTo("PROFESSOR_IDENTITY_CONFLICT");
         assertThat(promotionColumns(conflict.getId()).get("promoted_at")).isNull();
         assertThat(promotionColumns(valid.getId()).get("promoted_at")).isNotNull();
         assertThat(countProfessorByEmail(duplicateEmail)).isOne();
@@ -359,9 +603,18 @@ class ProfessorCandidatePromotionServiceTest {
     }
 
     private ProfessorCrawlData data(String name, String email, String laboratoryName) {
+        return data(name, "교수", email, laboratoryName);
+    }
+
+    private ProfessorCrawlData data(
+        String name,
+        String position,
+        String email,
+        String laboratoryName
+    ) {
         return new ProfessorCrawlData(
             name,
-            "교수",
+            position,
             email,
             laboratoryName,
             "연구 소개",
@@ -445,6 +698,36 @@ class ProfessorCandidatePromotionServiceTest {
             WHERE c.id = ?
               AND p.email IS NULL
             """, Long.class, candidateId);
+    }
+
+    private long countProfessorAffiliations(Long professorId) {
+        return jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM professor_department WHERE professor_id = ?",
+            Long.class,
+            professorId
+        );
+    }
+
+    private long countLaboratoryAffiliations(Long laboratoryId) {
+        return jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM laboratory_department WHERE laboratory_id = ?",
+            Long.class,
+            laboratoryId
+        );
+    }
+
+    private String professorAffiliationPosition(Long professorId, Long departmentId) {
+        return jdbcTemplate.queryForObject(
+            """
+                SELECT position
+                FROM professor_department
+                WHERE professor_id = ?
+                  AND department_id = ?
+                """,
+            String.class,
+            professorId,
+            departmentId
+        );
     }
 
     private String uniqueSuffix() {

@@ -3,9 +3,13 @@ package com.sebu.backend.laboratory.service;
 import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.department.repository.DepartmentRepository;
 import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.domain.LaboratoryDepartment;
+import com.sebu.backend.laboratory.repository.LaboratoryDepartmentRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
 import com.sebu.backend.professor.domain.Professor;
+import com.sebu.backend.professor.domain.ProfessorDepartment;
+import com.sebu.backend.professor.repository.ProfessorDepartmentRepository;
 import com.sebu.backend.professor.repository.ProfessorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,7 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class LaboratoryManagementService {
     private final LaboratoryRepository laboratoryRepository;
+    private final LaboratoryDepartmentRepository laboratoryDepartmentRepository;
     private final ProfessorRepository professorRepository;
+    private final ProfessorDepartmentRepository professorDepartmentRepository;
     private final DepartmentRepository departmentRepository;
 
     @Transactional
@@ -29,7 +35,17 @@ public class LaboratoryManagementService {
         Professor professor = findProfessor(professorId);
         Department department = findDepartment(departmentId);
         validateUniqueActiveName(departmentId, name);
-        return laboratoryRepository.save(new Laboratory(professor, department, name, websiteUrl, status));
+        Laboratory laboratory = laboratoryRepository.save(
+            new Laboratory(professor, department, name, websiteUrl, status)
+        );
+        professorDepartmentRepository.findByProfessor_IdAndDepartment_Id(
+            professorId,
+            departmentId
+        ).orElseGet(() -> professorDepartmentRepository.save(
+            new ProfessorDepartment(professor, department, professor.getPosition())
+        ));
+        laboratoryDepartmentRepository.save(new LaboratoryDepartment(laboratory, department));
+        return laboratory;
     }
 
     @Transactional

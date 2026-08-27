@@ -28,7 +28,7 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4");
 
     @Test
-    void v14DataSurvivesV15AndPromotionConstraintsAreEnforced() throws Exception {
+    void v14DataSurvivesV15AndV16AndSharedPromotionTargetsAreSupported() throws Exception {
         migrateToV14();
 
         FixtureIds fixture;
@@ -45,12 +45,33 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
             assertNameSourceHasNoDefault(connection);
 
             markCandidatePromoted(connection, fixture);
+        }
+
+        migrateToV16();
+
+        try (Connection connection = connection()) {
+            assertExistingAffiliationsWereBackfilled(connection, fixture);
+            long sharedCandidateId = insertV16Candidate(connection, fixture.sourceId());
+            markCandidatePromoted(connection, fixture, sharedCandidateId);
+            assertPromotionTargetsCanBeShared(
+                connection,
+                fixture.candidateId(),
+                sharedCandidateId,
+                fixture.professorId(),
+                fixture.laboratoryId()
+            );
             deleteLaboratory(connection, fixture.laboratoryId());
             assertLaboratoryReferenceWasClearedWithoutLosingPromotionHistory(
                 connection,
                 fixture.candidateId(),
                 fixture.professorId()
             );
+            assertLaboratoryReferenceWasClearedWithoutLosingPromotionHistory(
+                connection,
+                sharedCandidateId,
+                fixture.professorId()
+            );
+            assertLaboratoryAffiliationWasDeleted(connection, fixture.laboratoryId());
         }
     }
 
@@ -68,6 +89,15 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
             .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
             .locations("classpath:db/migration")
             .target(MigrationVersion.fromVersion("15"))
+            .load()
+            .migrate();
+    }
+
+    private void migrateToV16() {
+        Flyway.configure()
+            .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+            .locations("classpath:db/migration")
+            .target(MigrationVersion.fromVersion("16"))
             .load()
             .migrate();
     }
@@ -179,7 +209,7 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
             Timestamp.valueOf(REVIEWED_AT.minusHours(1)),
             0L
         );
-        return new FixtureIds(professorId, laboratoryId, candidateId);
+        return new FixtureIds(professorId, laboratoryId, sourceId, candidateId);
     }
 
     private void assertExistingLaboratoryWasBackfilledAsOfficial(
@@ -258,9 +288,135 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
         }
     }
 
+    private void assertExistingAffiliationsWereBackfilled(
+        Connection connection,
+        FixtureIds fixture
+    ) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+            SELECT pd.position,
+                   COUNT(DISTINCT ld.department_id) AS laboratory_department_count
+            FROM professor p
+            JOIN professor_department pd
+              ON pd.professor_id = p.id
+             AND pd.department_id = p.department_id
+            JOIN laboratory l ON l.id = ?
+            JOIN laboratory_department ld
+              ON ld.laboratory_id = l.id
+             AND ld.department_id = l.department_id
+            WHERE p.id = ?
+            GROUP BY pd.position
+            """)) {
+            statement.setLong(1, fixture.laboratoryId());
+            statement.setLong(2, fixture.professorId());
+            try (ResultSet result = statement.executeQuery()) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getString("position")).isEqualTo("교수");
+                assertThat(result.getInt("laboratory_department_count")).isOne();
+                assertThat(result.next()).isFalse();
+            }
+        }
+    }
+
+    private long insertV16Candidate(Connection connection, long sourceId) throws SQLException {
+        return insertAndReturnId(
+            connection,
+            """
+                INSERT INTO professor_crawl_candidate (
+                    source_id,
+                    source_identity_key,
+                    professor_name,
+                    position,
+                    email,
+                    laboratory_name,
+                    research_introduction,
+                    homepage_url,
+                    source_url_at_crawl,
+                    parser_type_at_crawl,
+                    is_stale,
+                    review_status,
+                    reviewed_by,
+                    reviewed_at,
+                    review_revision,
+                    crawled_at,
+                    version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+            sourceId,
+            "email:shared-promotion-target@example.com",
+            "겸임후보교수",
+            "교수",
+            "shared-promotion-target@example.com",
+            null,
+            "다른 학과에서 검수된 연구 소개",
+            "https://example.com/shared-promotion-target",
+            "https://example.com/promotion-migration/professors",
+            "SEJONG_STANDARD",
+            false,
+            "APPROVED",
+            "migration-tester",
+            Timestamp.valueOf(REVIEWED_AT),
+            1L,
+            Timestamp.valueOf(REVIEWED_AT.minusHours(1)),
+            0L
+        );
+    }
+
+    private void assertPromotionTargetsCanBeShared(
+        Connection connection,
+        long firstCandidateId,
+        long secondCandidateId,
+        long professorId,
+        long laboratoryId
+    ) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+            SELECT COUNT(*) AS shared_count
+            FROM professor_crawl_candidate
+            WHERE id IN (?, ?)
+              AND promoted_professor_id = ?
+              AND promoted_laboratory_id = ?
+            """)) {
+            statement.setLong(1, firstCandidateId);
+            statement.setLong(2, secondCandidateId);
+            statement.setLong(3, professorId);
+            statement.setLong(4, laboratoryId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getInt("shared_count")).isEqualTo(2);
+            }
+        }
+
+        try (PreparedStatement statement = connection.prepareStatement("""
+            SELECT index_name, non_unique
+            FROM information_schema.statistics
+            WHERE table_schema = DATABASE()
+              AND table_name = 'professor_crawl_candidate'
+              AND index_name IN (
+                  'idx_professor_crawl_candidate_promoted_professor',
+                  'idx_professor_crawl_candidate_promoted_laboratory'
+              )
+            ORDER BY index_name
+            """)) {
+            try (ResultSet result = statement.executeQuery()) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getInt("non_unique")).isOne();
+                assertThat(result.next()).isTrue();
+                assertThat(result.getInt("non_unique")).isOne();
+                assertThat(result.next()).isFalse();
+            }
+        }
+    }
+
     private void markCandidatePromoted(
         Connection connection,
         FixtureIds fixture
+    ) throws SQLException {
+        markCandidatePromoted(connection, fixture, fixture.candidateId());
+    }
+
+    private void markCandidatePromoted(
+        Connection connection,
+        FixtureIds fixture,
+        long candidateId
     ) throws SQLException {
         int updated = executeUpdate(
             connection,
@@ -277,7 +433,7 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
             fixture.laboratoryId(),
             Timestamp.valueOf(PROMOTED_AT),
             Timestamp.valueOf(REVIEWED_AT),
-            fixture.candidateId()
+            candidateId
         );
         assertThat(updated).isOne();
     }
@@ -323,6 +479,23 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
         }
     }
 
+    private void assertLaboratoryAffiliationWasDeleted(
+        Connection connection,
+        long laboratoryId
+    ) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+            SELECT COUNT(*)
+            FROM laboratory_department
+            WHERE laboratory_id = ?
+            """)) {
+            statement.setLong(1, laboratoryId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertThat(result.next()).isTrue();
+                assertThat(result.getInt(1)).isZero();
+            }
+        }
+    }
+
     private long insertAndReturnId(
         Connection connection,
         String sql,
@@ -363,6 +536,11 @@ class ProfessorCandidatePromotionMySqlMigrationTest {
         }
     }
 
-    private record FixtureIds(long professorId, long laboratoryId, long candidateId) {
+    private record FixtureIds(
+        long professorId,
+        long laboratoryId,
+        long sourceId,
+        long candidateId
+    ) {
     }
 }

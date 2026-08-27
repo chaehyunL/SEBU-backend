@@ -22,6 +22,7 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
         ProfessorResponse professor,
         CollegeResponse college,
         DepartmentResponse department,
+        List<AffiliationResponse> affiliations,
         List<String> researchFields,
         RecruitmentStatus recruitmentStatus,
         long bookmarkCount,
@@ -36,6 +37,9 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
                 new ProfessorResponse(result.professor().id(), result.professor().name(), result.professor().email()),
                 new CollegeResponse(result.college().id(), result.college().name()),
                 new DepartmentResponse(result.department().id(), result.department().name()),
+                result.affiliations().stream()
+                    .map(AffiliationResponse::from)
+                    .toList(),
                 result.researchFields(),
                 result.recruitmentStatus(),
                 result.bookmarkCount(),
@@ -51,5 +55,25 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
     }
 
     public record DepartmentResponse(Long id, String name) {
+    }
+
+    public record AffiliationResponse(
+        CollegeResponse college,
+        DepartmentResponse department
+    ) {
+        private static AffiliationResponse from(
+            LaboratoriesResult.AffiliationResult affiliation
+        ) {
+            return new AffiliationResponse(
+                new CollegeResponse(
+                    affiliation.college().id(),
+                    affiliation.college().name()
+                ),
+                new DepartmentResponse(
+                    affiliation.department().id(),
+                    affiliation.department().name()
+                )
+            );
+        }
     }
 }

@@ -137,6 +137,31 @@ public class Laboratory extends BaseTimeEntity {
         this.nameSource = Objects.requireNonNull(nameSource, "LABORATORY_NAME_SOURCE_REQUIRED");
     }
 
+    public boolean mergeFromPromotion(
+        String name,
+        String websiteUrl,
+        String description,
+        LaboratoryNameSource nameSource
+    ) {
+        if (isDeleted()) {
+            throw new IllegalStateException("DELETED_LABORATORY_CANNOT_BE_PROMOTED");
+        }
+        String normalizedName = requireText(name, "LABORATORY_NAME_REQUIRED");
+        String normalizedWebsiteUrl = normalizeNullable(websiteUrl);
+        String normalizedDescription = normalizeNullable(description);
+        LaboratoryNameSource normalizedNameSource = Objects.requireNonNull(
+            nameSource,
+            "LABORATORY_NAME_SOURCE_REQUIRED"
+        );
+
+        boolean changed = mergeName(normalizedName, normalizedNameSource);
+        MergeValue websiteMerge = mergeNullableValue(this.websiteUrl, normalizedWebsiteUrl);
+        MergeValue descriptionMerge = mergeNullableValue(this.description, normalizedDescription);
+        this.websiteUrl = websiteMerge.value();
+        this.description = descriptionMerge.value();
+        return changed || websiteMerge.changed() || descriptionMerge.changed();
+    }
+
     public void softDelete() {
         deletedAt = LocalDateTime.now();
     }
@@ -175,6 +200,38 @@ public class Laboratory extends BaseTimeEntity {
         this.nameSource = Objects.requireNonNull(nameSource, "LABORATORY_NAME_SOURCE_REQUIRED");
     }
 
+    private boolean mergeName(String requestedName, LaboratoryNameSource requestedSource) {
+        if (Objects.equals(name, requestedName)) {
+            if (nameSource == LaboratoryNameSource.GENERATED
+                && requestedSource == LaboratoryNameSource.OFFICIAL) {
+                nameSource = LaboratoryNameSource.OFFICIAL;
+                return true;
+            }
+            return false;
+        }
+        if (nameSource == LaboratoryNameSource.GENERATED
+            && requestedSource == LaboratoryNameSource.OFFICIAL) {
+            name = requestedName;
+            nameSource = LaboratoryNameSource.OFFICIAL;
+            return true;
+        }
+        if (nameSource == LaboratoryNameSource.OFFICIAL
+            && requestedSource == LaboratoryNameSource.GENERATED) {
+            return false;
+        }
+        throw new IllegalStateException("LABORATORY_PROFILE_CONFLICT");
+    }
+
+    private MergeValue mergeNullableValue(String current, String requested) {
+        if (requested == null || Objects.equals(current, requested)) {
+            return new MergeValue(current, false);
+        }
+        if (current == null) {
+            return new MergeValue(requested, true);
+        }
+        throw new IllegalStateException("LABORATORY_PROFILE_CONFLICT");
+    }
+
     private String requireText(String value, String errorCode) {
         String normalized = normalizeNullable(value);
         if (normalized == null) {
@@ -188,5 +245,8 @@ public class Laboratory extends BaseTimeEntity {
             return null;
         }
         return value.trim();
+    }
+
+    private record MergeValue(String value, boolean changed) {
     }
 }

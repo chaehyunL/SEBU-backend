@@ -1,11 +1,13 @@
 package com.sebu.backend.auth.service;
 
 import com.sebu.backend.auth.exception.InvalidLoginRequestException;
+import com.sebu.backend.auth.exception.AuthSessionConflictException;
 import com.sebu.backend.auth.port.SejongAuthenticationException;
 import com.sebu.backend.auth.port.SejongAuthenticator;
 import com.sebu.backend.auth.port.SejongUserProfile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,9 +31,13 @@ public class AuthService {
         }
         try {
             return authSessionService.start(profile);
-        } catch (DataIntegrityViolationException exception) {
-            return authSessionService.startExisting(profile)
-                .orElseThrow(() -> exception);
+        } catch (DataIntegrityViolationException | ObjectOptimisticLockingFailureException exception) {
+            try {
+                return authSessionService.startExisting(profile)
+                    .orElseThrow(() -> exception);
+            } catch (ObjectOptimisticLockingFailureException retryConflict) {
+                throw new AuthSessionConflictException();
+            }
         }
     }
 

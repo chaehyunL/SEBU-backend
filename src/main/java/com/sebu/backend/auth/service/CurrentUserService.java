@@ -5,9 +5,11 @@ import com.sebu.backend.auth.exception.InvalidGradeException;
 import com.sebu.backend.global.auth.CurrentUserProvider;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.repository.AppUserRepository;
+import com.sebu.backend.user.exception.ProfileUpdateConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -37,11 +39,17 @@ public class CurrentUserService {
         AppUser user = appUserRepository.findById(userId)
             .orElseThrow(AccessTokenInvalidException::new);
         user.updateGrade(grade, LocalDateTime.now(ZoneOffset.UTC));
+        try {
+            appUserRepository.flush();
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            throw new ProfileUpdateConflictException();
+        }
         return CurrentUser.from(user);
     }
 
     public record CurrentUser(
         Long id,
+        String nickname,
         String studentId,
         String name,
         Short grade,
@@ -50,11 +58,14 @@ public class CurrentUserService {
     ) {
         private static CurrentUser from(AppUser user) {
             var major = user.getMajorDepartment();
-            Department department = user.getSejongDepartmentName() == null
-                ? major == null ? null : new Department(major.getId(), major.getName())
-                : new Department(null, user.getSejongDepartmentName());
+            Department department = major != null && major.getName().equals(user.getSejongDepartmentName())
+                ? new Department(major.getId(), major.getName())
+                : user.getSejongDepartmentName() == null
+                    ? null
+                    : new Department(null, user.getSejongDepartmentName());
             return new CurrentUser(
                 user.getId(),
+                user.getNickname(),
                 user.getProviderUserId(),
                 user.getName(),
                 user.getGrade(),

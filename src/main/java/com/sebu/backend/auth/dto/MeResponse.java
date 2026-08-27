@@ -15,7 +15,7 @@ public record MeResponse(
         var department = user.department();
         return new MeResponse(
             user.id(),
-            null,
+            user.nickname(),
             user.studentId(),
             user.name(),
             user.grade(),

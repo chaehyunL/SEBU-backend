@@ -12,18 +12,13 @@ public record MyPageResponse(
 ) {
     public record Profile(
             String name,
+            String nickname,
             Short grade,
-            Major major,
+            DepartmentSummary department,
             GpaBand gpaBand,
             String introduction,
             boolean profileCompleted,
             LocalDateTime profileUpdatedAt
-    ) {
-    }
-
-    public record Major(
-            String id,
-            String name
     ) {
     }
 

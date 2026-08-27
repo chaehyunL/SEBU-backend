@@ -173,7 +173,7 @@ public class SejongSsoClient implements SejongAuthenticator {
     ) {
         Request request = initialRequest;
         for (int redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount++) {
-            ClientResponse response = send(session, request, stage);
+            ClientResponse response = sendWithoutBody(session, request, stage);
             if (!isRedirect(response.statusCode())) {
                 return response;
             }
@@ -195,10 +195,27 @@ public class SejongSsoClient implements SejongAuthenticator {
         Request request,
         String stage
     ) {
+        return send(session, request, stage, true);
+    }
+
+    private ClientResponse sendWithoutBody(
+        SejongHttpClientFactory.Session session,
+        Request request,
+        String stage
+    ) {
+        return send(session, request, stage, false);
+    }
+
+    private ClientResponse send(
+        SejongHttpClientFactory.Session session,
+        Request request,
+        String stage,
+        boolean includeBody
+    ) {
         try (Response response = session.httpClient().newCall(request).execute()) {
             return new ClientResponse(
                 response.code(),
-                readLimitedBody(response.body()),
+                includeBody ? readLimitedBody(response.body()) : "",
                 response.header("Location"),
                 request.url()
             );

@@ -1,10 +1,9 @@
 package com.sebu.backend.mypage.service;
 
 import com.sebu.backend.department.domain.Department;
-import com.sebu.backend.department.repository.DepartmentRepository;
 import com.sebu.backend.mypage.dto.ProfileResponse;
 import com.sebu.backend.mypage.dto.ProfileUpdateRequest;
-import com.sebu.backend.mypage.exception.MajorNotFoundException;
+import com.sebu.backend.user.exception.ProfileUpdateConflictException;
 import com.sebu.backend.mypage.moderation.IntroductionModerationException;
 import com.sebu.backend.mypage.moderation.IntroductionModerator;
 import com.sebu.backend.mypage.moderation.ModerationResult;
@@ -12,6 +11,7 @@ import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,7 +22,6 @@ import java.time.LocalDateTime;
 public class ProfileService {
 
     private final AppUserRepository appUserRepository;
-    private final DepartmentRepository departmentRepository;
     private final IntroductionModerator introductionModerator;
 
     @Transactional
@@ -33,17 +32,6 @@ public class ProfileService {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
 
-        Long majorId;
-
-        try {
-            majorId = Long.parseLong(request.majorId());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("INVALID_MAJOR_ID");
-        }
-
-        Department major = departmentRepository.findById(majorId)
-                .orElseThrow(MajorNotFoundException::new);
-
         ModerationResult moderationResult =
                 introductionModerator.moderate(request.introduction());
 
@@ -51,12 +39,9 @@ public class ProfileService {
             throw new IntroductionModerationException();
         }
 
-        String normalizedName = request.name().trim();
-
         user.updateProfile(
-                normalizedName,
+                request.nickname(),
                 request.grade(),
-                major,
                 request.gpaBand(),
                 request.introduction(),
                 LocalDateTime.now(),
@@ -64,23 +49,37 @@ public class ProfileService {
                 moderationResult.providerVersion()
         );
 
+        try {
+            appUserRepository.flush();
+        } catch (ObjectOptimisticLockingFailureException exception) {
+            throw new ProfileUpdateConflictException();
+        }
+
         return toResponse(user);
     }
 
     private ProfileResponse toResponse(AppUser user) {
-        Department major = user.getMajorDepartment();
+        ProfileResponse.Department department = toDepartment(user);
 
         return new ProfileResponse(
                 user.getName(),
+                user.getNickname(),
                 user.getGrade(),
-                new ProfileResponse.Major(
-                        major.getId().toString(),
-                        major.getName()
-                ),
+                department,
                 user.getGpaBand(),
                 user.getIntroduction(),
                 user.isProfileCompleted(),
                 user.getProfileUpdatedAt()
         );
+    }
+
+    private ProfileResponse.Department toDepartment(AppUser user) {
+        Department department = user.getMajorDepartment();
+        if (department != null && department.getName().equals(user.getSejongDepartmentName())) {
+            return new ProfileResponse.Department(department.getId().toString(), department.getName());
+        }
+        return user.getSejongDepartmentName() == null
+                ? null
+                : new ProfileResponse.Department(null, user.getSejongDepartmentName());
     }
 }

@@ -32,8 +32,10 @@ class SejongProfileLoginIntegrationTest {
         assertThat(first.isNewUser()).isTrue();
         assertThat(user.getName()).isEqualTo("홍길동");
         assertThat(user.getSejongDepartmentName()).isEqualTo("컴퓨터공학과");
+        assertThat(user.getMajorDepartment()).isNotNull();
+        assertThat(user.getMajorDepartment().getName()).isEqualTo("컴퓨터공학과");
         assertThat(user.getGrade()).isNull();
-        assertThat(user.isProfileCompleted()).isTrue();
+        assertThat(user.isProfileCompleted()).isFalse();
 
         LocalDateTime initialProfileUpdatedAt = user.getProfileUpdatedAt();
         var second = authSessionService.start(initial);
@@ -50,6 +52,7 @@ class SejongProfileLoginIntegrationTest {
         var updated = appUserRepository.findById(first.userId()).orElseThrow();
         assertThat(updated.getName()).isEqualTo("홍길순");
         assertThat(updated.getSejongDepartmentName()).isEqualTo("컴퓨터공학과(개편)");
+        assertThat(updated.getMajorDepartment()).isNull();
         assertThat(updated.getGrade()).isEqualTo((short) 3);
         assertThat(updated.isProfileCompleted()).isTrue();
         assertThat(appUserRepository.count()).isOne();
@@ -70,8 +73,9 @@ class SejongProfileLoginIntegrationTest {
         assertThat(second.isNewUser()).isFalse();
         assertThat(second.userId()).isEqualTo(first.userId());
         assertThat(user.getSejongDepartmentName()).isEqualTo("무인이동체공학전공");
+        assertThat(user.getMajorDepartment()).isNull();
         assertThat(user.getGrade()).isNull();
-        assertThat(user.isProfileCompleted()).isTrue();
+        assertThat(user.isProfileCompleted()).isFalse();
         assertThat(appUserRepository.count()).isOne();
     }
 

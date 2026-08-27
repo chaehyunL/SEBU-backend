@@ -9,7 +9,7 @@ public record SejongLoginRequest(
     @Pattern(regexp = "\\d{8}")
     String studentId,
     @NotBlank
-    @Size(min = 8, max = 128)
+    @Size(min = 8, max = 64)
     String password
 ) {
     @Override

@@ -19,6 +19,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -90,10 +92,6 @@ public class MyPageControllerIntegrationTest {
 
     @Test
     void 로그인한_사용자는_프로필을_저장할_수_있다() throws Exception {
-        AppUser user = appUserRepository.save(
-                new AppUser("profile-controller@example.com")
-        );
-
         College college = collegeRepository.save(
                 new College("프로필컨트롤러대학")
         );
@@ -101,16 +99,16 @@ public class MyPageControllerIntegrationTest {
         Department major = departmentRepository.save(
                 new Department(college, "AI로봇학과")
         );
+        AppUser user = sejongUser("profile-controller", "홍길동", major);
 
         String requestBody = """
                 {
-                  "name": "홍길동",
+                  "nickname": "길동이",
                   "grade": 3,
-                  "majorId": "%s",
                   "gpaBand": "GTE_3_5",
                   "introduction": "머신러닝에 관심이 있습니다."
                 }
-                """.formatted(major.getId());
+                """;
 
         mockMvc.perform(
                         put("/api/v1/users/me/profile")
@@ -127,10 +125,11 @@ public class MyPageControllerIntegrationTest {
                         "private, no-store"
                 ))
                 .andExpect(jsonPath("$.data.name").value("홍길동"))
+                .andExpect(jsonPath("$.data.nickname").value("길동이"))
                 .andExpect(jsonPath("$.data.grade").value(3))
-                .andExpect(jsonPath("$.data.major.id")
+                .andExpect(jsonPath("$.data.department.id")
                         .value(major.getId().toString()))
-                .andExpect(jsonPath("$.data.major.name")
+                .andExpect(jsonPath("$.data.department.name")
                         .value("AI로봇학과"))
                 .andExpect(jsonPath("$.data.gpaBand")
                         .value("GTE_3_5"))
@@ -157,13 +156,12 @@ public class MyPageControllerIntegrationTest {
 
         String requestBody = """
                 {
-                  "name": "홍길동",
+                  "nickname": "길동이",
                   "grade": 5,
-                  "majorId": "%s",
                   "gpaBand": "GTE_3_5",
                   "introduction": "머신러닝에 관심이 있습니다."
                 }
-                """.formatted(major.getId());
+                """;
 
         mockMvc.perform(
                         put("/api/v1/users/me/profile")
@@ -196,13 +194,12 @@ public class MyPageControllerIntegrationTest {
 
         String requestBody = """
                 {
-                  "name": "홍길동",
+                  "nickname": "길동이",
                   "grade": 3,
-                  "majorId": "%s",
                   "gpaBand": "GTE_3_5",
                   "introduction": "검사할 자기소개"
                 }
-                """.formatted(major.getId());
+                """;
 
         mockMvc.perform(
                         put("/api/v1/users/me/profile")
@@ -288,13 +285,12 @@ public class MyPageControllerIntegrationTest {
 
         String requestBody = """
         {
-          "name": "홍길동",
+          "nickname": "길동이",
           "grade": 3,
-          "majorId": "%s",
           "gpaBand": "GTE_3_5",
           "introduction": "차 단.테-스 트 표현"
         }
-        """.formatted(major.getId());
+        """;
 
         mockMvc.perform(
                         put("/api/v1/users/me/profile")
@@ -344,13 +340,12 @@ public class MyPageControllerIntegrationTest {
 
         String requestBody = """
             {
-              "name": "홍길동",
+              "nickname": "길동이",
               "grade": 3,
-              "majorId": "%s",
               "gpaBand": "GTE_3_5",
               "introduction": "검사할 자기소개"
             }
-            """.formatted(major.getId());
+            """;
 
         // when & then
         mockMvc.perform(
@@ -448,14 +443,15 @@ public class MyPageControllerIntegrationTest {
     }
 
     @Test
-    void 존재하지_않는_전공으로_프로필을_수정하면_404를_반환한다() throws Exception {
-        AppUser user = appUserRepository.save(
-                new AppUser("major-not-found@example.com")
-        );
+    void 프로필_요청으로_학사_이름과_학과를_변경할_수_없다() throws Exception {
+        College college = collegeRepository.save(new College("학사정보보호대학"));
+        Department department = departmentRepository.save(new Department(college, "컴퓨터공학과"));
+        AppUser user = sejongUser("academic-profile", "홍길동", department);
 
         String requestBody = """
             {
-              "name": "홍길동",
+              "name": "조작된 이름",
+              "nickname": null,
               "grade": 3,
               "majorId": "999999",
               "gpaBand": "GTE_3_5",
@@ -472,9 +468,19 @@ public class MyPageControllerIntegrationTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody)
                 )
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code")
-                        .value("MAJOR_NOT_FOUND"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("홍길동"))
+                .andExpect(jsonPath("$.data.department.id").value(department.getId().toString()))
+                .andExpect(jsonPath("$.data.department.name").value("컴퓨터공학과"));
+    }
+
+    private AppUser sejongUser(String studentId, String name, Department department) {
+        return appUserRepository.save(AppUser.sejong(
+                studentId,
+                name,
+                department.getName(),
+                department,
+                LocalDateTime.now().minusMinutes(1)
+        ));
     }
 }

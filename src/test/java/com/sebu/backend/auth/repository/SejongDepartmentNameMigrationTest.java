@@ -12,16 +12,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SejongDepartmentNameMigrationTest {
     @Test
-    void emptyDatabaseMigratesThroughV17() {
+    void emptyDatabaseMigratesThroughLatestVersion() {
         String url = databaseUrl("empty");
 
         var result = flyway(url, null).migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(17);
+        assertThat(result.migrationsExecuted).isEqualTo(19);
     }
 
     @Test
-    void v14DataSurvivesV17WithoutUnsafeBackfill() throws Exception {
+    void v14DataSurvivesLatestVersionWithoutUnsafeBackfill() throws Exception {
         String url = databaseUrl("upgrade");
         flyway(url, "14").migrate();
 
@@ -38,12 +38,14 @@ class SejongDepartmentNameMigrationTest {
         try (var connection = DriverManager.getConnection(url, "sa", "");
              var statement = connection.createStatement()) {
             try (var result = statement.executeQuery("""
-                SELECT name, sejong_department_name
+                SELECT name, sejong_department_name, nickname, version
                 FROM app_user WHERE provider_user_id = 'legacy-student'
                 """)) {
                 assertThat(result.next()).isTrue();
                 assertThat(result.getString("name")).isEqualTo("기존사용자");
                 assertThat(result.getString("sejong_department_name")).isNull();
+                assertThat(result.getString("nickname")).isNull();
+                assertThat(result.getLong("version")).isZero();
             }
 
             statement.executeUpdate("""

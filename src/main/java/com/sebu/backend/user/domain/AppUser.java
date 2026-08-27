@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -53,6 +54,9 @@ public class AppUser extends BaseTimeEntity {
     @Column(length = 30)
     private String name;
 
+    @Column(length = 30)
+    private String nickname;
+
     private Short grade;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -84,6 +88,10 @@ public class AppUser extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Version
+    @Column(nullable = false)
+    private long version;
+
     public AppUser(String email) {
         this.email = normalizeEmail(email);
     }
@@ -101,26 +109,30 @@ public class AppUser extends BaseTimeEntity {
         String providerUserId,
         String name,
         String departmentName,
+        Department department,
         LocalDateTime profileUpdatedAt
     ) {
         AppUser user = new AppUser(AuthProvider.SEJONG, providerUserId);
-        user.applySejongProfile(name, departmentName, profileUpdatedAt);
+        user.applySejongProfile(name, departmentName, department, profileUpdatedAt);
         return user;
     }
 
     public boolean applySejongProfile(
         String name,
         String departmentName,
+        Department department,
         LocalDateTime changedAt
     ) {
         String normalizedName = requireName(name);
         String normalizedDepartmentName = requireDepartmentName(departmentName);
         if (Objects.equals(this.name, normalizedName)
-            && Objects.equals(this.sejongDepartmentName, normalizedDepartmentName)) {
+            && Objects.equals(this.sejongDepartmentName, normalizedDepartmentName)
+            && Objects.equals(this.majorDepartment, department)) {
             return false;
         }
         this.name = normalizedName;
         this.sejongDepartmentName = normalizedDepartmentName;
+        this.majorDepartment = department;
         this.profileUpdatedAt = Objects.requireNonNull(changedAt, "PROFILE_UPDATED_AT_REQUIRED");
         refreshProfileCompleted();
         return true;
@@ -136,12 +148,13 @@ public class AppUser extends BaseTimeEntity {
         }
         this.grade = normalizedGrade;
         this.profileUpdatedAt = Objects.requireNonNull(changedAt, "PROFILE_UPDATED_AT_REQUIRED");
+        refreshProfileCompleted();
     }
 
     private void refreshProfileCompleted() {
         this.profileCompleted = name != null
-            && (sejongDepartmentName != null
-                || grade != null && majorDepartment != null);
+            && sejongDepartmentName != null
+            && grade != null;
     }
 
     private static String requireName(String value) {
@@ -185,25 +198,24 @@ public class AppUser extends BaseTimeEntity {
     }
 
     public void updateProfile(
-            String name,
+            String nickname,
             Short grade,
-            Department majorDepartment,
             GpaBand gpaBand,
             String introduction,
             LocalDateTime moderatedAt,
             String policyVersion,
             String providerVersion
     ) {
+        String normalizedNickname = normalizeNickname(nickname);
+        requireGrade(grade);
         boolean changed =
-                !Objects.equals(this.name, name)
+                !Objects.equals(this.nickname, normalizedNickname)
                         || !Objects.equals(this.grade, grade)
-                        || !Objects.equals(this.majorDepartment, majorDepartment)
                         || !Objects.equals(this.gpaBand, gpaBand)
                         || !Objects.equals(this.introduction, introduction);
 
-        this.name = name;
+        this.nickname = normalizedNickname;
         this.grade = grade;
-        this.majorDepartment = majorDepartment;
         this.gpaBand = gpaBand;
         this.introduction = introduction;
 
@@ -214,7 +226,24 @@ public class AppUser extends BaseTimeEntity {
         refreshProfileCompleted();
 
         if (changed) {
-            this.profileUpdatedAt = LocalDateTime.now();
+            this.profileUpdatedAt = Objects.requireNonNull(moderatedAt, "PROFILE_UPDATED_AT_REQUIRED");
+        }
+    }
+
+    private static String normalizeNickname(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 30) {
+            throw new IllegalArgumentException("NICKNAME_TOO_LONG");
+        }
+        return normalized;
+    }
+
+    private static void requireGrade(Short grade) {
+        if (grade == null || grade < 1 || grade > 4) {
+            throw new IllegalArgumentException("GRADE_OUT_OF_RANGE");
         }
     }
 

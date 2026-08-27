@@ -200,6 +200,16 @@ class SejongSsoClientTest {
     }
 
     @Test
+    void doesNotBufferLargeChunkedBodiesFromIntermediateSsoSteps() throws Exception {
+        startServer(Scenario.OVERSIZED_INTERMEDIATE_SSO_RESPONSES);
+        SejongSsoClient client = client(Duration.ofSeconds(1));
+
+        SejongUserProfile profile = client.authenticate("21012345", "password");
+
+        assertThat(profile.studentId()).isEqualTo("21012345");
+    }
+
+    @Test
     void rejectsEmptyPortalSessionCookie() throws Exception {
         startServer(Scenario.EMPTY_PORTAL_SESSION);
         SejongSsoClient client = client(Duration.ofSeconds(1));
@@ -409,6 +419,10 @@ class SejongSsoClientTest {
             respond(exchange, 302, "redirect");
             return;
         }
+        if (scenario == Scenario.OVERSIZED_INTERMEDIATE_SSO_RESPONSES) {
+            respondChunked(exchange, 200, "x".repeat(64 * 1024 + 1));
+            return;
+        }
         respond(exchange, 200, "portal sso");
     }
 
@@ -427,6 +441,10 @@ class SejongSsoClientTest {
         if (scenario == Scenario.ALLOWED_GET_REDIRECTS) {
             exchange.getResponseHeaders().add("Location", "/sso-final");
             respond(exchange, 303, "redirect");
+            return;
+        }
+        if (scenario == Scenario.OVERSIZED_INTERMEDIATE_SSO_RESPONSES) {
+            respondChunked(exchange, 200, "x".repeat(64 * 1024 + 1));
             return;
         }
         respond(exchange, 200, "sso");
@@ -468,6 +486,13 @@ class SejongSsoClientTest {
         }
     }
 
+    private void respondChunked(HttpExchange exchange, int status, String body) throws IOException {
+        exchange.sendResponseHeaders(status, 0);
+        try (var output = exchange.getResponseBody()) {
+            output.write(body.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     private String portalFormValue(String expectedName) {
         for (String entry : portalRequestBody.split("&")) {
             String[] nameAndValue = entry.split("=", 2);
@@ -489,6 +514,7 @@ class SejongSsoClientTest {
         PORTAL_REDIRECT_WITH_SESSION,
         PORTAL_307_REDIRECT_WITH_SESSION,
         ALLOWED_GET_REDIRECTS,
+        OVERSIZED_INTERMEDIATE_SSO_RESPONSES,
         PORTAL_FORBIDDEN,
         NO_PORTAL_SESSION,
         EMPTY_PORTAL_SESSION,

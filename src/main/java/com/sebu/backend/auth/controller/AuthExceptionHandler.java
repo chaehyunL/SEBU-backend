@@ -1,6 +1,7 @@
 package com.sebu.backend.auth.controller;
 
 import com.sebu.backend.auth.exception.AccessTokenInvalidException;
+import com.sebu.backend.auth.exception.AuthSessionConflictException;
 import com.sebu.backend.auth.exception.InvalidLoginRequestException;
 import com.sebu.backend.auth.exception.InvalidGradeException;
 import com.sebu.backend.auth.exception.RefreshTokenInvalidException;
@@ -78,6 +79,15 @@ public class AuthExceptionHandler {
             HttpStatus.UNAUTHORIZED,
             "REFRESH_TOKEN_INVALID",
             "로그인이 만료되었습니다. 다시 로그인해주세요."
+        );
+    }
+
+    @ExceptionHandler(AuthSessionConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthSessionConflict(AuthSessionConflictException exception) {
+        return failure(
+            HttpStatus.CONFLICT,
+            "AUTH_SESSION_CONFLICT",
+            "사용자 정보가 동시에 변경되었습니다. 다시 로그인해주세요."
         );
     }
 

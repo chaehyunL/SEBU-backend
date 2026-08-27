@@ -92,7 +92,7 @@ class AuthApiIntegrationTest {
             .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
             .andExpect(jsonPath("$.data.expiresIn").value(1800))
             .andExpect(jsonPath("$.data.user.isNewUser").value(true))
-            .andExpect(jsonPath("$.data.user.profileCompleted").value(true))
+            .andExpect(jsonPath("$.data.user.profileCompleted").value(false))
             .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
                 containsString("refresh_token="),
                 containsString("Path=/api/v1/auth"),
@@ -161,7 +161,7 @@ class AuthApiIntegrationTest {
         mockMvc.perform(loginRequest("21012345", "short"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_REQUEST"));
-        mockMvc.perform(loginRequest("21012345", "x".repeat(129)))
+        mockMvc.perform(loginRequest("21012345", "x".repeat(65)))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_REQUEST"));
 

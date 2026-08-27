@@ -29,6 +29,17 @@ class ForwardedHeadersIntegrationTest {
         assertThat(loginStatus("192.0.2.11")).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    @Test
+    void acceptsDockerHealthTargetWhenForwardedProtocolIsHttps() {
+        HttpStatusCode status = RestClient.create("http://127.0.0.1:" + port)
+            .get()
+            .uri("/api/v1/laboratories")
+            .header("X-Forwarded-Proto", "https")
+            .exchange((request, response) -> response.getStatusCode());
+
+        assertThat(status).isEqualTo(HttpStatus.OK);
+    }
+
     private HttpStatusCode loginStatus(String clientIp) {
         return RestClient.create("http://127.0.0.1:" + port)
             .post()

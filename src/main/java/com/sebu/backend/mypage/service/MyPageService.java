@@ -85,19 +85,26 @@ public class MyPageService {
     }
 
     private MyPageResponse.Profile toProfile(AppUser user) {
-        MyPageResponse.Major major = null;
+        MyPageResponse.DepartmentSummary department = null;
 
-        if (user.getMajorDepartment() != null) {
-            major = new MyPageResponse.Major(
+        if (user.getMajorDepartment() != null
+                && user.getMajorDepartment().getName().equals(user.getSejongDepartmentName())) {
+            department = new MyPageResponse.DepartmentSummary(
                     user.getMajorDepartment().getId().toString(),
                     user.getMajorDepartment().getName()
+            );
+        } else if (user.getSejongDepartmentName() != null) {
+            department = new MyPageResponse.DepartmentSummary(
+                    null,
+                    user.getSejongDepartmentName()
             );
         }
 
         return new MyPageResponse.Profile(
                 user.getName(),
+                user.getNickname(),
                 user.getGrade(),
-                major,
+                department,
                 user.getGpaBand(),
                 user.getIntroduction(),
                 user.isProfileCompleted(),

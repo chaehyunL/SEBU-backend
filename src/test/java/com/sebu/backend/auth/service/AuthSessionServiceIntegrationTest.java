@@ -4,6 +4,7 @@ import com.sebu.backend.auth.domain.RefreshToken;
 import com.sebu.backend.auth.exception.RefreshTokenInvalidException;
 import com.sebu.backend.auth.repository.RefreshTokenRepository;
 import com.sebu.backend.auth.token.RefreshTokenGenerator;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import com.sebu.backend.user.domain.AuthProvider;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.repository.AppUserRepository;
@@ -34,8 +35,8 @@ class AuthSessionServiceIntegrationTest {
 
     @Test
     void createsUserOnceAndKeepsIndependentRefreshTokensForMultipleLogins() {
-        AuthSessionService.LoginSession first = authSessionService.start("21012345");
-        AuthSessionService.LoginSession second = authSessionService.start("21012345");
+        AuthSessionService.LoginSession first = authSessionService.start(profile("21012345"));
+        AuthSessionService.LoginSession second = authSessionService.start(profile("21012345"));
 
         assertThat(first.isNewUser()).isTrue();
         assertThat(second.isNewUser()).isFalse();
@@ -53,7 +54,7 @@ class AuthSessionServiceIntegrationTest {
 
     @Test
     void rotatesRefreshTokenAndRejectsReusingThePreviousToken() {
-        AuthSessionService.LoginSession login = authSessionService.start("rotation-user");
+        AuthSessionService.LoginSession login = authSessionService.start(profile("rotation-user"));
         String previousHash = refreshTokenGenerator.hash(login.refreshToken());
 
         AuthSessionService.RefreshSession refreshed = authSessionService.refresh(login.refreshToken());
@@ -94,5 +95,9 @@ class AuthSessionServiceIntegrationTest {
             .isInstanceOf(RefreshTokenInvalidException.class);
         assertThatThrownBy(() -> authSessionService.refresh(revokedMaterial.rawToken()))
             .isInstanceOf(RefreshTokenInvalidException.class);
+    }
+
+    private SejongUserProfile profile(String studentId) {
+        return new SejongUserProfile(studentId, "홍길동", "컴퓨터공학과");
     }
 }

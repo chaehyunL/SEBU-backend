@@ -2,6 +2,7 @@ package com.sebu.backend.global.auth;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.sebu.backend.auth.config.AuthCookieProperties;
+import com.sebu.backend.auth.config.AuthTransportProperties;
 import com.sebu.backend.auth.config.TokenProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -33,11 +34,14 @@ import javax.crypto.spec.SecretKeySpec;
 import java.time.Instant;
 import java.util.List;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.http.HttpMethod.PATCH;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({TokenProperties.class, AuthCookieProperties.class})
+@EnableConfigurationProperties({TokenProperties.class, AuthCookieProperties.class, AuthTransportProperties.class})
 public class SecurityConfiguration {
     private static final String AUTH_API_PATH = "/api/v1/auth";
     private static final OAuth2Error EXPIRED_TOKEN_ERROR = new OAuth2Error(
@@ -55,8 +59,12 @@ public class SecurityConfiguration {
     SecurityFilterChain securityFilterChain(
         HttpSecurity http,
         JwtAuthenticationEntryPoint authenticationEntryPoint,
-        BearerTokenResolver bearerTokenResolver
+        BearerTokenResolver bearerTokenResolver,
+        AuthTransportProperties transportProperties
     ) throws Exception {
+        if (transportProperties.requireHttps()) {
+            http.redirectToHttps(withDefaults());
+        }
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -65,6 +73,7 @@ public class SecurityConfiguration {
                     .permitAll()
                 .requestMatchers(GET, "/api/v1/laboratories").permitAll()
                 .requestMatchers(GET, "/api/v1/me").authenticated()
+                .requestMatchers(PATCH, "/api/v1/me/profile").authenticated()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationEntryPoint))

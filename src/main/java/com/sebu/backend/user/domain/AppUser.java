@@ -19,6 +19,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -58,6 +59,9 @@ public class AppUser extends BaseTimeEntity {
     @JoinColumn(name = "major_department_id")
     private Department majorDepartment;
 
+    @Column(name = "sejong_department_name", length = 100)
+    private String sejongDepartmentName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "gpa_band", length = 20)
     private GpaBand gpaBand;
@@ -91,6 +95,78 @@ public class AppUser extends BaseTimeEntity {
 
     public static AppUser sejong(String providerUserId) {
         return new AppUser(AuthProvider.SEJONG, providerUserId);
+    }
+
+    public static AppUser sejong(
+        String providerUserId,
+        String name,
+        String departmentName,
+        LocalDateTime profileUpdatedAt
+    ) {
+        AppUser user = new AppUser(AuthProvider.SEJONG, providerUserId);
+        user.applySejongProfile(name, departmentName, profileUpdatedAt);
+        return user;
+    }
+
+    public boolean applySejongProfile(
+        String name,
+        String departmentName,
+        LocalDateTime changedAt
+    ) {
+        String normalizedName = requireName(name);
+        String normalizedDepartmentName = requireDepartmentName(departmentName);
+        if (Objects.equals(this.name, normalizedName)
+            && Objects.equals(this.sejongDepartmentName, normalizedDepartmentName)) {
+            return false;
+        }
+        this.name = normalizedName;
+        this.sejongDepartmentName = normalizedDepartmentName;
+        this.profileUpdatedAt = Objects.requireNonNull(changedAt, "PROFILE_UPDATED_AT_REQUIRED");
+        refreshProfileCompleted();
+        return true;
+    }
+
+    public void updateGrade(int grade, LocalDateTime changedAt) {
+        if (grade < 1 || grade > 4) {
+            throw new IllegalArgumentException("GRADE_OUT_OF_RANGE");
+        }
+        short normalizedGrade = (short) grade;
+        if (Objects.equals(this.grade, normalizedGrade)) {
+            return;
+        }
+        this.grade = normalizedGrade;
+        this.profileUpdatedAt = Objects.requireNonNull(changedAt, "PROFILE_UPDATED_AT_REQUIRED");
+    }
+
+    private void refreshProfileCompleted() {
+        this.profileCompleted = name != null
+            && sejongDepartmentName != null;
+    }
+
+    private static String requireName(String value) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("USER_NAME_REQUIRED");
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 30) {
+            throw new IllegalArgumentException("USER_NAME_TOO_LONG");
+        }
+        return normalized;
+    }
+
+    private static String requireDepartmentName(String value) {
+        return requireProfileText(value, 100, "SEJONG_DEPARTMENT_NAME");
+    }
+
+    private static String requireProfileText(String value, int maxLength, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + "_REQUIRED");
+        }
+        String normalized = value.trim();
+        if (normalized.length() > maxLength) {
+            throw new IllegalArgumentException(field + "_TOO_LONG");
+        }
+        return normalized;
     }
 
     private static String normalizeEmail(String value) {

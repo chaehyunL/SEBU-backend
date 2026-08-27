@@ -3,6 +3,7 @@ package com.sebu.backend.auth.service;
 import com.sebu.backend.auth.config.TokenProperties;
 import com.sebu.backend.auth.domain.RefreshToken;
 import com.sebu.backend.auth.exception.RefreshTokenInvalidException;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import com.sebu.backend.auth.repository.RefreshTokenRepository;
 import com.sebu.backend.auth.token.JwtAccessTokenService;
 import com.sebu.backend.auth.token.RefreshTokenGenerator;
@@ -62,22 +63,41 @@ public class AuthSessionService {
     }
 
     @Transactional
-    public LoginSession start(String providerUserId) {
+    public LoginSession start(SejongUserProfile profile) {
         AppUser user = appUserRepository
-            .findByProviderAndProviderUserId(AuthProvider.SEJONG, providerUserId)
+            .findByProviderAndProviderUserId(AuthProvider.SEJONG, profile.studentId())
             .orElse(null);
         boolean newUser = user == null;
+        LocalDateTime now = now();
         if (newUser) {
-            user = appUserRepository.save(AppUser.sejong(providerUserId));
+            user = appUserRepository.save(AppUser.sejong(
+                profile.studentId(),
+                profile.name(),
+                profile.departmentName(),
+                now
+            ));
+        } else {
+            user.applySejongProfile(
+                profile.name(),
+                profile.departmentName(),
+                now
+            );
         }
-
-        return issueLoginSession(user, newUser, now());
+        return issueLoginSession(user, newUser, now);
     }
 
     @Transactional
-    public Optional<LoginSession> startExisting(String providerUserId) {
-        return appUserRepository.findByProviderAndProviderUserId(AuthProvider.SEJONG, providerUserId)
-            .map(user -> issueLoginSession(user, false, now()));
+    public Optional<LoginSession> startExisting(SejongUserProfile profile) {
+        LocalDateTime now = now();
+        return appUserRepository.findByProviderAndProviderUserId(AuthProvider.SEJONG, profile.studentId())
+            .map(user -> {
+                user.applySejongProfile(
+                    profile.name(),
+                    profile.departmentName(),
+                    now
+                );
+                return issueLoginSession(user, false, now);
+            });
     }
 
     @Transactional

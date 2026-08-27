@@ -2,7 +2,7 @@ package com.sebu.backend.auth.service;
 
 import com.sebu.backend.auth.exception.RefreshTokenInvalidException;
 import com.sebu.backend.auth.port.SejongAuthenticator;
-import com.sebu.backend.auth.port.SejongIdentity;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import com.sebu.backend.auth.repository.RefreshTokenRepository;
 import com.sebu.backend.user.repository.AppUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,16 +58,16 @@ class AuthConcurrencyIntegrationTest {
         CyclicBarrier barrier = new CyclicBarrier(2);
         when(sejongAuthenticator.authenticate(anyString(), anyString())).thenAnswer(invocation -> {
             barrier.await(5, TimeUnit.SECONDS);
-            return new SejongIdentity("concurrent-user", "RUNNING", "LOGIN", "STUDENT");
+            return new SejongUserProfile("21000007", "홍길동", "컴퓨터공학과");
         });
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
             Future<AuthSessionService.LoginSession> first = executor.submit(
-                () -> authService.loginWithSejong("requested-a", "password")
+                () -> authService.loginWithSejong("21000007", "password")
             );
             Future<AuthSessionService.LoginSession> second = executor.submit(
-                () -> authService.loginWithSejong("requested-b", "password")
+                () -> authService.loginWithSejong("21000007", "password")
             );
 
             List<AuthSessionService.LoginSession> sessions = List.of(
@@ -88,7 +88,9 @@ class AuthConcurrencyIntegrationTest {
 
     @Test
     void onlyOneConcurrentRefreshCanRotateTheSameToken() throws Exception {
-        AuthSessionService.LoginSession login = authSessionService.start("concurrent-refresh-user");
+        AuthSessionService.LoginSession login = authSessionService.start(new SejongUserProfile(
+            "concurrent-refresh-user", "홍길동", "컴퓨터공학과"
+        ));
         CyclicBarrier barrier = new CyclicBarrier(2);
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {

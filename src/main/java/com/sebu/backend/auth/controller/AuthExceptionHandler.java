@@ -2,9 +2,11 @@ package com.sebu.backend.auth.controller;
 
 import com.sebu.backend.auth.exception.AccessTokenInvalidException;
 import com.sebu.backend.auth.exception.InvalidLoginRequestException;
+import com.sebu.backend.auth.exception.InvalidGradeException;
 import com.sebu.backend.auth.exception.RefreshTokenInvalidException;
 import com.sebu.backend.auth.port.SejongAuthenticationException;
 import com.sebu.backend.global.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -14,19 +16,49 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice(assignableTypes = {AuthController.class, MeController.class})
 public class AuthExceptionHandler {
-    @ExceptionHandler({InvalidLoginRequestException.class, MethodArgumentNotValidException.class,
-        HttpMessageNotReadableException.class})
-    public ResponseEntity<ApiResponse<Void>> handleInvalidLoginRequest(Exception exception) {
+    private static final String PROFILE_PATH = "/api/v1/me/profile";
+
+    @ExceptionHandler(InvalidLoginRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidLoginRequest(InvalidLoginRequestException exception) {
+        return invalidLoginRequest();
+    }
+
+    private ResponseEntity<ApiResponse<Void>> invalidLoginRequest() {
         return failure(
             HttpStatus.BAD_REQUEST,
             "INVALID_LOGIN_REQUEST",
-            "학번과 비밀번호를 모두 입력해주세요."
+            "학번 또는 비밀번호 형식을 확인해주세요."
+        );
+    }
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class})
+    public ResponseEntity<ApiResponse<Void>> handleInvalidRequestBody(
+        Exception exception,
+        HttpServletRequest request
+    ) {
+        if (PROFILE_PATH.equals(request.getRequestURI())) {
+            return invalidGrade();
+        }
+        return invalidLoginRequest();
+    }
+
+    @ExceptionHandler(InvalidGradeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidGrade(InvalidGradeException exception) {
+        return invalidGrade();
+    }
+
+    private ResponseEntity<ApiResponse<Void>> invalidGrade() {
+        return failure(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_GRADE",
+            "학년은 1부터 4까지 입력해주세요."
         );
     }
 
     @ExceptionHandler(SejongAuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleSejongAuthentication(SejongAuthenticationException exception) {
-        if (exception.getReason() == SejongAuthenticationException.Reason.AUTHENTICATION_FAILED) {
+        if (exception.getReason() == SejongAuthenticationException.Reason.AUTHENTICATION_FAILED
+            || exception.getReason() == SejongAuthenticationException.Reason.IDENTITY_MISMATCH) {
             return failure(
                 HttpStatus.UNAUTHORIZED,
                 "SEJONG_AUTH_FAILED",

@@ -22,7 +22,7 @@ jobs:
   test:
     name: Build and test
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -42,3 +42,27 @@ jobs:
 
       - name: Build and test
         run: ./gradlew clean test --no-daemon
+
+      - name: Build runtime container
+        run: docker build --tag sebu-backend:ci .
+
+      - name: Start runtime container and smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id=$(docker run --detach \
+            --publish 18080:8080 \
+            --env SPRING_PROFILES_ACTIVE=local \
+            --env JWT_SECRET_BASE64="$(openssl rand -base64 32)" \
+            sebu-backend:ci)
+          trap 'docker rm --force "$container_id" > /dev/null 2>&1 || true' EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/api/v1/laboratories > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker logs "$container_id"
+          exit 1

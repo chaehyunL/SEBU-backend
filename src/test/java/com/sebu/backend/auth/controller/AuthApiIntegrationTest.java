@@ -1,10 +1,13 @@
 package com.sebu.backend.auth.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.sebu.backend.auth.config.TokenProperties;
 import com.sebu.backend.auth.port.SejongAuthenticationException;
 import com.sebu.backend.auth.port.SejongAuthenticator;
-import com.sebu.backend.auth.port.SejongIdentity;
+import com.sebu.backend.auth.port.SejongUserProfile;
 import com.sebu.backend.auth.repository.RefreshTokenRepository;
 import com.sebu.backend.auth.token.RefreshTokenGenerator;
 import com.sebu.backend.user.domain.AuthProvider;
@@ -26,6 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
@@ -37,6 +41,8 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -72,11 +78,8 @@ class AuthApiIntegrationTest {
     @BeforeEach
     void setUpAuthenticator() {
         when(sejongAuthenticator.authenticate(anyString(), anyString()))
-            .thenAnswer(invocation -> new SejongIdentity(
-                invocation.getArgument(0),
-                "RUNNING",
-                "20260818120000",
-                "STUDENT"
+            .thenAnswer(invocation -> new SejongUserProfile(
+                invocation.getArgument(0), "홍길동", "컴퓨터공학과"
             ));
     }
 
@@ -89,7 +92,7 @@ class AuthApiIntegrationTest {
             .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
             .andExpect(jsonPath("$.data.expiresIn").value(1800))
             .andExpect(jsonPath("$.data.user.isNewUser").value(true))
-            .andExpect(jsonPath("$.data.user.profileCompleted").value(false))
+            .andExpect(jsonPath("$.data.user.profileCompleted").value(true))
             .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
                 containsString("refresh_token="),
                 containsString("Path=/api/v1/auth"),
@@ -132,22 +135,42 @@ class AuthApiIntegrationTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_REQUEST"));
 
-        when(sejongAuthenticator.authenticate("bad-user", "bad-password"))
+        when(sejongAuthenticator.authenticate("21000001", "bad-password"))
             .thenThrow(SejongAuthenticationException.authenticationFailed());
-        mockMvc.perform(loginRequest("bad-user", "bad-password"))
+        mockMvc.perform(loginRequest("21000001", "bad-password"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.error.code").value("SEJONG_AUTH_FAILED"));
 
-        when(sejongAuthenticator.authenticate("system-error", "password"))
+        when(sejongAuthenticator.authenticate("21000002", "password"))
             .thenThrow(SejongAuthenticationException.systemUnavailable());
-        mockMvc.perform(loginRequest("system-error", "password"))
+        mockMvc.perform(loginRequest("21000002", "password"))
             .andExpect(status().isBadGateway())
             .andExpect(jsonPath("$.error.code").value("SEJONG_SYSTEM_UNAVAILABLE"));
     }
 
     @Test
+    void rejectsInvalidCredentialFormatsWithoutCallingSchool() throws Exception {
+        clearInvocations(sejongAuthenticator);
+
+        mockMvc.perform(loginRequest("2101234", "password"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_REQUEST"));
+        mockMvc.perform(loginRequest("abcdefgh", "password"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_REQUEST"));
+        mockMvc.perform(loginRequest("21012345", "short"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_REQUEST"));
+        mockMvc.perform(loginRequest("21012345", "x".repeat(129)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_REQUEST"));
+
+        verifyNoInteractions(sejongAuthenticator);
+    }
+
+    @Test
     void rotatesRefreshTokenAndRejectsPreviousTokenWithoutCallingSejong() throws Exception {
-        MvcResult login = mockMvc.perform(loginRequest("rotation-user", "password"))
+        MvcResult login = mockMvc.perform(loginRequest("21000003", "password"))
             .andExpect(status().isOk())
             .andReturn();
         String previousToken = refreshTokenFrom(login);
@@ -173,7 +196,7 @@ class AuthApiIntegrationTest {
 
     @Test
     void refreshesWithValidCookieEvenWhenExpiredAccessTokenHeaderIsPresent() throws Exception {
-        MvcResult login = mockMvc.perform(loginRequest("expired-header-user", "password"))
+        MvcResult login = mockMvc.perform(loginRequest("21000004", "password"))
             .andExpect(status().isOk())
             .andReturn();
 
@@ -186,7 +209,7 @@ class AuthApiIntegrationTest {
 
     @Test
     void refreshesWithValidCookieEvenWhenInvalidAccessTokenHeaderIsPresent() throws Exception {
-        MvcResult login = mockMvc.perform(loginRequest("invalid-header-user", "password"))
+        MvcResult login = mockMvc.perform(loginRequest("21000005", "password"))
             .andExpect(status().isOk())
             .andReturn();
 
@@ -206,10 +229,10 @@ class AuthApiIntegrationTest {
 
     @Test
     void logsOutOnlyCurrentTokenAndClearsCookie() throws Exception {
-        MvcResult firstLogin = mockMvc.perform(loginRequest("multi-device-user", "password"))
+        MvcResult firstLogin = mockMvc.perform(loginRequest("21000006", "password"))
             .andExpect(status().isOk())
             .andReturn();
-        MvcResult secondLogin = mockMvc.perform(loginRequest("multi-device-user", "password"))
+        MvcResult secondLogin = mockMvc.perform(loginRequest("21000006", "password"))
             .andExpect(status().isOk())
             .andReturn();
         String firstToken = refreshTokenFrom(firstLogin);
@@ -245,6 +268,77 @@ class AuthApiIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.message").value("로그아웃되었습니다."))
             .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
+    }
+
+    @Test
+    void authenticatedUserChoosesGradeAndReloginDoesNotOverwriteIt() throws Exception {
+        MvcResult login = mockMvc.perform(loginRequest("21012345", "known-fake-password-for-log-test"))
+            .andExpect(status().isOk())
+            .andReturn();
+        String accessToken = objectMapper.readTree(login.getResponse().getContentAsString())
+            .path("data").path("accessToken").asText();
+
+        mockMvc.perform(patch("/api/v1/me/profile")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"grade\":3}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.studentId").value("21012345"))
+            .andExpect(jsonPath("$.data.name").value("홍길동"))
+            .andExpect(jsonPath("$.data.nickname").doesNotExist())
+            .andExpect(jsonPath("$.data.department.name").value("컴퓨터공학과"))
+            .andExpect(jsonPath("$.data.department.code").doesNotExist())
+            .andExpect(jsonPath("$.data.grade").value(3))
+            .andExpect(jsonPath("$.data.profileCompleted").value(true));
+
+        mockMvc.perform(loginRequest("21012345", "known-fake-password-for-log-test"))
+            .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/me")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.grade").value(3));
+
+        mockMvc.perform(patch("/api/v1/me/profile")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"grade\":5}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_GRADE"));
+
+        mockMvc.perform(patch("/api/v1/me/profile")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_GRADE"));
+
+        mockMvc.perform(patch("/api/v1/me/profile")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("not-json"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("INVALID_GRADE"));
+    }
+
+    @Test
+    void loginCredentialsAreNotWrittenToApplicationLogs() throws Exception {
+        String fakePassword = "known-fake-password-must-never-appear";
+        Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        rootLogger.addAppender(appender);
+        try {
+            mockMvc.perform(loginRequest("21012345", fakePassword))
+                .andExpect(status().isOk());
+        } finally {
+            rootLogger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(appender.list)
+            .extracting(ILoggingEvent::getFormattedMessage)
+            .allSatisfy(message -> assertThat(message)
+                .doesNotContain("21012345", fakePassword, "SSOTOKEN", "JSESSIONID", "Set-Cookie"));
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder loginRequest(

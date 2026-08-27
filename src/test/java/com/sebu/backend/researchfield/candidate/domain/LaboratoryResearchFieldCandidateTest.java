@@ -1,0 +1,170 @@
+package com.sebu.backend.researchfield.candidate.domain;
+
+import com.sebu.backend.college.domain.College;
+import com.sebu.backend.department.domain.Department;
+import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.domain.RecruitmentStatus;
+import com.sebu.backend.professor.domain.Professor;
+import org.junit.jupiter.api.Test;
+
+import java.time.LocalDateTime;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class LaboratoryResearchFieldCandidateTest {
+    private static final String FIELD_KEY = "a".repeat(64);
+    private static final String DESCRIPTION_HASH = "b".repeat(64);
+    private static final LocalDateTime EXTRACTED_AT = LocalDateTime.of(2026, 8, 27, 10, 0);
+
+    @Test
+    void requiresAReviewedNameBeforeApproval() {
+        LaboratoryResearchFieldCandidate candidate = candidate(null);
+
+        assertThatThrownBy(() -> candidate.approve(
+            "reviewer",
+            null,
+            EXTRACTED_AT.plusHours(1)
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("CANDIDATE_NAME_REQUIRED_FOR_APPROVAL");
+
+        candidate.reviseCandidateName("자율주행");
+        candidate.approve("reviewer", "검수 완료", EXTRACTED_AT.plusHours(1));
+
+        assertThat(candidate.isCurrentAndApproved()).isTrue();
+        assertThat(candidate.getReviewRevision()).isOne();
+        assertThat(candidate.getReviewedBy()).isEqualTo("reviewer");
+    }
+
+    @Test
+    void staleCandidateCannotBeReviewedAndReappearanceRequiresReviewAgain() {
+        LaboratoryResearchFieldCandidate candidate = candidate("인공지능");
+        candidate.approve("reviewer", null, EXTRACTED_AT.plusHours(1));
+        candidate.markStale();
+
+        assertThatThrownBy(() -> candidate.reject(
+            "reviewer",
+            null,
+            EXTRACTED_AT.plusHours(2)
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("STALE_CANDIDATE_NOT_REVIEWABLE");
+
+        boolean changed = candidate.refreshFromExtraction(
+            draft("인공지능"),
+            "c".repeat(64),
+            "sejong-v1",
+            EXTRACTED_AT.plusHours(3)
+        );
+
+        assertThat(changed).isTrue();
+        assertThat(candidate.isStale()).isFalse();
+        assertThat(candidate.getReviewStatus()).isEqualTo(
+            ResearchFieldCandidateReviewStatus.PENDING
+        );
+        assertThat(candidate.getReviewedBy()).isNull();
+        assertThat(candidate.getReviewRevision()).isOne();
+    }
+
+    @Test
+    void identicalExtractionDoesNotMutateAnExistingCandidate() {
+        LaboratoryResearchFieldCandidate candidate = candidate("인공지능");
+
+        boolean changed = candidate.refreshFromExtraction(
+            draft("인공지능"),
+            DESCRIPTION_HASH,
+            "sejong-v1",
+            EXTRACTED_AT.plusHours(1)
+        );
+
+        assertThat(changed).isFalse();
+        assertThat(candidate.getExtractedAt()).isEqualTo(EXTRACTED_AT);
+    }
+
+    @Test
+    void refreshesOnlyAnUntouchedAutomaticCandidateName() {
+        LaboratoryResearchFieldCandidate automaticCandidate = candidateWithRawAndName("ai", "ai");
+        LaboratoryResearchFieldCandidate manuallyRevisedCandidate =
+            candidateWithRawAndName("ai", "ai");
+        manuallyRevisedCandidate.reviseCandidateName("인공지능");
+        ResearchFieldCandidateDraft refreshedDraft = new ResearchFieldCandidateDraft(
+            FIELD_KEY,
+            "AI",
+            "AI",
+            ResearchFieldExtractionMethod.WHOLE_TEXT,
+            0
+        );
+
+        automaticCandidate.refreshFromExtraction(
+            refreshedDraft,
+            "c".repeat(64),
+            "sejong-v1",
+            EXTRACTED_AT.plusHours(1)
+        );
+        manuallyRevisedCandidate.refreshFromExtraction(
+            refreshedDraft,
+            "c".repeat(64),
+            "sejong-v1",
+            EXTRACTED_AT.plusHours(1)
+        );
+
+        assertThat(automaticCandidate.getCandidateName()).isEqualTo("AI");
+        assertThat(manuallyRevisedCandidate.getCandidateName()).isEqualTo("인공지능");
+    }
+
+    private LaboratoryResearchFieldCandidate candidate(String candidateName) {
+        return new LaboratoryResearchFieldCandidate(
+            laboratory(),
+            draft(candidateName),
+            DESCRIPTION_HASH,
+            "sejong-v1",
+            EXTRACTED_AT
+        );
+    }
+
+    private LaboratoryResearchFieldCandidate candidateWithRawAndName(
+        String rawFieldText,
+        String candidateName
+    ) {
+        return new LaboratoryResearchFieldCandidate(
+            laboratory(),
+            new ResearchFieldCandidateDraft(
+                FIELD_KEY,
+                rawFieldText,
+                candidateName,
+                ResearchFieldExtractionMethod.WHOLE_TEXT,
+                0
+            ),
+            DESCRIPTION_HASH,
+            "sejong-v1",
+            EXTRACTED_AT
+        );
+    }
+
+    private ResearchFieldCandidateDraft draft(String candidateName) {
+        return new ResearchFieldCandidateDraft(
+            FIELD_KEY,
+            candidateName == null ? "긴 연구실 소개 문장" : candidateName,
+            candidateName,
+            candidateName == null
+                ? ResearchFieldExtractionMethod.LONG_TEXT
+                : ResearchFieldExtractionMethod.WHOLE_TEXT,
+            0
+        );
+    }
+
+    private Laboratory laboratory() {
+        College college = new College("테스트 대학");
+        Department department = new Department(college, "테스트 학과");
+        Professor professor = new Professor(department, "테스트 교수", null);
+        return new Laboratory(
+            professor,
+            department,
+            "테스트 연구실",
+            null,
+            "인공지능",
+            RecruitmentStatus.UNKNOWN
+        );
+    }
+}

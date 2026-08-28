@@ -10,7 +10,8 @@ public class SebuBackendApplication {
 	public static void main(String[] args) {
 		ConfigurableApplicationContext context = SpringApplication.run(SebuBackendApplication.class, args);
 		if (context.getEnvironment().matchesProfiles(
-			"crawler | promotion | research-field-extraction | research-field-manual-split"
+			"crawler | promotion | research-field-extraction"
+				+ " | research-field-manual-split | research-field-promotion"
 		)) {
 			context.close();
 		}

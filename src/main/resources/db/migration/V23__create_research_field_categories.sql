@@ -29,4 +29,3 @@ CREATE TABLE research_field_category_mapping (
 
 CREATE INDEX idx_rfcm_category_research_field
     ON research_field_category_mapping (category_id, research_field_id);
-

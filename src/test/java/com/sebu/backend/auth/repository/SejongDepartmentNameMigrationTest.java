@@ -17,7 +17,7 @@ class SejongDepartmentNameMigrationTest {
 
         var result = flyway(url, null).migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(20);
+        assertThat(result.migrationsExecuted).isEqualTo(21);
     }
 
     @Test

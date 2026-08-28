@@ -2,6 +2,7 @@ package com.sebu.backend.researchfield.candidate.domain;
 
 import com.sebu.backend.global.domain.BaseTimeEntity;
 import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.researchfield.domain.ResearchField;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,6 +40,10 @@ import java.util.Objects;
         @Index(
             name = "idx_lrf_candidate_split_origin",
             columnList = "split_from_candidate_id, id"
+        ),
+        @Index(
+            name = "idx_lrf_candidate_promoted_research_field",
+            columnList = "promoted_research_field_id"
         )
     }
 )
@@ -103,6 +108,19 @@ public class LaboratoryResearchFieldCandidate extends BaseTimeEntity {
 
     @Column(name = "review_revision", nullable = false)
     private long reviewRevision;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "promoted_research_field_id")
+    private ResearchField promotedResearchField;
+
+    @Column(name = "promoted_at")
+    private LocalDateTime promotedAt;
+
+    @Column(name = "promoted_reviewed_at")
+    private LocalDateTime promotedReviewedAt;
+
+    @Column(name = "promoted_review_revision")
+    private Long promotedReviewRevision;
 
     @Column(name = "extracted_at", nullable = false)
     private LocalDateTime extractedAt;
@@ -264,6 +282,68 @@ public class LaboratoryResearchFieldCandidate extends BaseTimeEntity {
 
     public boolean isCurrentAndApproved() {
         return !stale && reviewStatus == ResearchFieldCandidateReviewStatus.APPROVED;
+    }
+
+    public boolean needsPromotion() {
+        return isCurrentAndApproved()
+            && candidateName != null
+            && reviewedBy != null
+            && !reviewedBy.isBlank()
+            && reviewedAt != null
+            && reviewRevision > 0
+            && !Objects.equals(reviewRevision, promotedReviewRevision);
+    }
+
+    public boolean hasBeenPromoted() {
+        return promotedResearchField != null
+            || promotedAt != null
+            || promotedReviewedAt != null
+            || promotedReviewRevision != null;
+    }
+
+    public boolean hasConsistentPromotionState() {
+        boolean unpromoted = promotedResearchField == null
+            && promotedAt == null
+            && promotedReviewedAt == null
+            && promotedReviewRevision == null;
+        boolean promoted = promotedResearchField != null
+            && promotedAt != null
+            && promotedReviewedAt != null
+            && promotedReviewRevision != null;
+        return unpromoted || promoted;
+    }
+
+    public void recordPromotion(
+        ResearchField researchField,
+        LocalDateTime promotedAt
+    ) {
+        if (!needsPromotion()) {
+            throw new IllegalStateException("CANDIDATE_NOT_READY_FOR_PROMOTION");
+        }
+        ResearchField normalizedResearchField = Objects.requireNonNull(
+            researchField,
+            "PROMOTED_RESEARCH_FIELD_REQUIRED"
+        );
+        LocalDateTime normalizedPromotedAt = Objects.requireNonNull(
+            promotedAt,
+            "PROMOTED_AT_REQUIRED"
+        );
+        if (hasBeenPromoted()
+            && !sameEntity(promotedResearchField, normalizedResearchField)) {
+            throw new IllegalArgumentException("PROMOTED_ENTITY_CANNOT_BE_REPLACED");
+        }
+
+        this.promotedResearchField = normalizedResearchField;
+        this.promotedAt = normalizedPromotedAt;
+        promotedReviewedAt = reviewedAt;
+        promotedReviewRevision = reviewRevision;
+    }
+
+    private boolean sameEntity(ResearchField current, ResearchField requested) {
+        return current == requested
+            || current != null
+            && current.getId() != null
+            && Objects.equals(current.getId(), requested.getId());
     }
 
     private void review(

@@ -15,9 +15,11 @@ class SejongDepartmentNameMigrationTest {
     void emptyDatabaseMigratesThroughLatestVersion() {
         String url = databaseUrl("empty");
 
-        var result = flyway(url, null).migrate();
+        Flyway flyway = flyway(url, null);
 
-        assertThat(result.migrationsExecuted).isEqualTo(22);
+        flyway.migrate();
+
+        assertThat(flyway.info().pending()).isEmpty();
     }
 
     @Test

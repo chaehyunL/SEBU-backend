@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface LaboratoryResearchFieldCandidateRepository
     extends JpaRepository<LaboratoryResearchFieldCandidate, Long> {
@@ -21,5 +22,15 @@ public interface LaboratoryResearchFieldCandidateRepository
         """)
     List<LaboratoryResearchFieldCandidate> findAllByLaboratoryIdForUpdate(
         @Param("laboratoryId") Long laboratoryId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select candidate
+        from LaboratoryResearchFieldCandidate candidate
+        where candidate.id = :candidateId
+        """)
+    Optional<LaboratoryResearchFieldCandidate> findByIdForUpdate(
+        @Param("candidateId") Long candidateId
     );
 }

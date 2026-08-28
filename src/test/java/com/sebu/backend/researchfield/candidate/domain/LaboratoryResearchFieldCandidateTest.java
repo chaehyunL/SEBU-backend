@@ -113,6 +113,65 @@ class LaboratoryResearchFieldCandidateTest {
         assertThat(manuallyRevisedCandidate.getCandidateName()).isEqualTo("인공지능");
     }
 
+    @Test
+    void createsManualSplitCandidatesFromAnUnresolvedLongTextSource() {
+        LaboratoryResearchFieldCandidate source = candidate(null);
+        ResearchFieldCandidateDraft splitDraft = new ResearchFieldCandidateDraft(
+            "c".repeat(64),
+            "자율주행 인공지능",
+            "자율주행 인공지능",
+            ResearchFieldExtractionMethod.MANUAL_SPLIT,
+            1
+        );
+
+        LaboratoryResearchFieldCandidate split =
+            LaboratoryResearchFieldCandidate.manualSplit(
+                source,
+                splitDraft,
+                "manual-split-csv-v1",
+                EXTRACTED_AT.plusHours(1)
+            );
+        source.rejectAfterManualSplit(
+            "reviewer",
+            "수동 분리 완료",
+            EXTRACTED_AT.plusHours(1)
+        );
+
+        assertThat(split.getSplitFromCandidate()).isSameAs(source);
+        assertThat(split.getCandidateName()).isEqualTo("자율주행 인공지능");
+        assertThat(split.getExtractionMethod()).isEqualTo(
+            ResearchFieldExtractionMethod.MANUAL_SPLIT
+        );
+        assertThat(split.getReviewStatus()).isEqualTo(
+            ResearchFieldCandidateReviewStatus.PENDING
+        );
+        assertThat(source.getReviewStatus()).isEqualTo(
+            ResearchFieldCandidateReviewStatus.REJECTED
+        );
+    }
+
+    @Test
+    void manualSplitBecomesStaleWhenItsSourceBecomesStale() {
+        LaboratoryResearchFieldCandidate source = candidate(null);
+        LaboratoryResearchFieldCandidate split =
+            LaboratoryResearchFieldCandidate.manualSplit(
+                source,
+                new ResearchFieldCandidateDraft(
+                    "c".repeat(64),
+                    "컴퓨터비전",
+                    "컴퓨터비전",
+                    ResearchFieldExtractionMethod.MANUAL_SPLIT,
+                    1
+                ),
+                "manual-split-csv-v1",
+                EXTRACTED_AT.plusHours(1)
+            );
+
+        source.markStale();
+
+        assertThat(split.shouldBecomeStaleFromSplitSource()).isTrue();
+    }
+
     private LaboratoryResearchFieldCandidate candidate(String candidateName) {
         return new LaboratoryResearchFieldCandidate(
             laboratory(),

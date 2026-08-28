@@ -24,8 +24,14 @@ public class ResearchFieldCandidateReconciler {
         String extractionRuleVersion,
         LocalDateTime extractedAt
     ) {
+        List<LaboratoryResearchFieldCandidate> manualSplitCandidates =
+            existingCandidates.stream()
+                .filter(LaboratoryResearchFieldCandidate::isManualSplit)
+                .toList();
         Map<String, LaboratoryResearchFieldCandidate> unmatchedCandidates =
-            existingCandidates.stream().collect(Collectors.toMap(
+            existingCandidates.stream()
+                .filter(candidate -> !candidate.isManualSplit())
+                .collect(Collectors.toMap(
                 LaboratoryResearchFieldCandidate::getSourceFieldKey,
                 Function.identity(),
                 (first, duplicate) -> {
@@ -66,6 +72,12 @@ public class ResearchFieldCandidateReconciler {
         int staleCount = 0;
         for (LaboratoryResearchFieldCandidate unmatched : unmatchedCandidates.values()) {
             if (unmatched.markStale()) {
+                staleCount++;
+            }
+        }
+        for (LaboratoryResearchFieldCandidate manualSplit : manualSplitCandidates) {
+            if (manualSplit.shouldBecomeStaleFromSplitSource()
+                && manualSplit.markStale()) {
                 staleCount++;
             }
         }

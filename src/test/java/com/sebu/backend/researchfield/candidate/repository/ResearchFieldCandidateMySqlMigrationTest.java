@@ -27,7 +27,8 @@ class ResearchFieldCandidateMySqlMigrationTest {
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4");
 
     @Test
-    void v19DataSurvivesV20AndCandidateConstraintsAreEnforcedOnMySql() throws Exception {
+    void v19DataSurvivesV20AndV21CandidateConstraintsAreEnforcedOnMySql()
+        throws Exception {
         migrateToV19();
         long laboratoryId;
         try (Connection connection = connection()) {
@@ -84,6 +85,48 @@ class ResearchFieldCandidateMySqlMigrationTest {
                 candidateId
             )).isOne();
 
+            migrateToV21();
+            long sourceId = insertLongTextSource(connection, laboratoryId);
+            assertThatThrownBy(() -> insertManualSplitCandidate(
+                connection,
+                laboratoryId,
+                null,
+                "d".repeat(64)
+            )).isInstanceOf(SQLException.class);
+            long splitId = insertManualSplitCandidate(
+                connection,
+                laboratoryId,
+                sourceId,
+                "d".repeat(64)
+            );
+            assertThat(count(
+                connection,
+                """
+                    SELECT COUNT(*)
+                    FROM laboratory_research_field_candidate
+                    WHERE id = ?
+                      AND extraction_method = 'MANUAL_SPLIT'
+                      AND split_from_candidate_id = ?
+                    """,
+                splitId,
+                sourceId
+            )).isOne();
+            assertThatThrownBy(() -> executeUpdate(
+                connection,
+                "DELETE FROM laboratory_research_field_candidate WHERE id = ?",
+                sourceId
+            )).isInstanceOf(SQLException.class);
+            executeUpdate(
+                connection,
+                "DELETE FROM laboratory_research_field_candidate WHERE id = ?",
+                splitId
+            );
+            executeUpdate(
+                connection,
+                "DELETE FROM laboratory_research_field_candidate WHERE id = ?",
+                sourceId
+            );
+
             executeUpdate(connection, "DELETE FROM laboratory WHERE id = ?", laboratoryId);
             assertThat(count(
                 connection,
@@ -107,6 +150,15 @@ class ResearchFieldCandidateMySqlMigrationTest {
             .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
             .locations("classpath:db/migration")
             .target(MigrationVersion.fromVersion("20"))
+            .load()
+            .migrate();
+    }
+
+    private void migrateToV21() {
+        Flyway.configure()
+            .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+            .locations("classpath:db/migration")
+            .target(MigrationVersion.fromVersion("21"))
             .load()
             .migrate();
     }
@@ -186,6 +238,72 @@ class ResearchFieldCandidateMySqlMigrationTest {
             "DELIMITED",
             0,
             "sejong-v1",
+            Timestamp.valueOf(EXTRACTED_AT)
+        );
+    }
+
+    private long insertLongTextSource(
+        Connection connection,
+        long laboratoryId
+    ) throws SQLException {
+        return insertAndReturnId(
+            connection,
+            """
+                INSERT INTO laboratory_research_field_candidate (
+                    laboratory_id,
+                    source_field_key,
+                    source_description_hash,
+                    raw_field_text,
+                    candidate_name,
+                    extraction_method,
+                    source_order,
+                    extraction_rule_version,
+                    extracted_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+            laboratoryId,
+            "c".repeat(64),
+            "b".repeat(64),
+            "자율주행자동차와 드론의 환경 인식 및 제어를 연구합니다.",
+            null,
+            "LONG_TEXT",
+            1,
+            "sejong-v1",
+            Timestamp.valueOf(EXTRACTED_AT)
+        );
+    }
+
+    private long insertManualSplitCandidate(
+        Connection connection,
+        long laboratoryId,
+        Long sourceId,
+        String sourceFieldKey
+    ) throws SQLException {
+        return insertAndReturnId(
+            connection,
+            """
+                INSERT INTO laboratory_research_field_candidate (
+                    laboratory_id,
+                    split_from_candidate_id,
+                    source_field_key,
+                    source_description_hash,
+                    raw_field_text,
+                    candidate_name,
+                    extraction_method,
+                    source_order,
+                    extraction_rule_version,
+                    extracted_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+            laboratoryId,
+            sourceId,
+            sourceFieldKey,
+            "b".repeat(64),
+            "자율주행 인공지능",
+            "자율주행 인공지능",
+            "MANUAL_SPLIT",
+            1,
+            "manual-split-csv-v1",
             Timestamp.valueOf(EXTRACTED_AT)
         );
     }

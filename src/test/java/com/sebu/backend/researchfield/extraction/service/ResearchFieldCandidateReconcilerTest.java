@@ -82,6 +82,63 @@ class ResearchFieldCandidateReconcilerTest {
             .isEqualTo(true);
     }
 
+    @Test
+    void preservesManualSplitsWhileTheirLongTextSourceIsCurrent() {
+        ResearchFieldCandidateDraft sourceDraft = longTextDraft();
+        LaboratoryResearchFieldCandidate source = candidate(sourceDraft);
+        LaboratoryResearchFieldCandidate split =
+            LaboratoryResearchFieldCandidate.manualSplit(
+                source,
+                new ResearchFieldCandidateDraft(
+                    hasher.hashFieldIdentity("자율주행 인공지능"),
+                    "자율주행 인공지능",
+                    "자율주행 인공지능",
+                    ResearchFieldExtractionMethod.MANUAL_SPLIT,
+                    1
+                ),
+                "manual-split-csv-v1",
+                EXTRACTED_AT
+            );
+        source.rejectAfterManualSplit("reviewer", null, EXTRACTED_AT);
+
+        ResearchFieldCandidateReconciliation result = reconcile(
+            List.of(sourceDraft),
+            List.of(source, split)
+        );
+
+        assertThat(result.staleCount()).isZero();
+        assertThat(source.isStale()).isFalse();
+        assertThat(split.isStale()).isFalse();
+    }
+
+    @Test
+    void marksManualSplitsStaleWhenTheirLongTextSourceDisappears() {
+        LaboratoryResearchFieldCandidate source = candidate(longTextDraft());
+        LaboratoryResearchFieldCandidate split =
+            LaboratoryResearchFieldCandidate.manualSplit(
+                source,
+                new ResearchFieldCandidateDraft(
+                    hasher.hashFieldIdentity("컴퓨터비전"),
+                    "컴퓨터비전",
+                    "컴퓨터비전",
+                    ResearchFieldExtractionMethod.MANUAL_SPLIT,
+                    1
+                ),
+                "manual-split-csv-v1",
+                EXTRACTED_AT
+            );
+        source.rejectAfterManualSplit("reviewer", null, EXTRACTED_AT);
+
+        ResearchFieldCandidateReconciliation result = reconcile(
+            List.of(),
+            List.of(source, split)
+        );
+
+        assertThat(result.staleCount()).isEqualTo(2);
+        assertThat(source.isStale()).isTrue();
+        assertThat(split.isStale()).isTrue();
+    }
+
     private ResearchFieldCandidateReconciliation reconcile(
         List<ResearchFieldCandidateDraft> drafts,
         List<LaboratoryResearchFieldCandidate> existing
@@ -103,6 +160,29 @@ class ResearchFieldCandidateReconcilerTest {
             name,
             ResearchFieldExtractionMethod.DELIMITED,
             order
+        );
+    }
+
+    private ResearchFieldCandidateDraft longTextDraft() {
+        String rawText = "자율주행자동차와 드론의 환경 인식 및 제어를 연구합니다.";
+        return new ResearchFieldCandidateDraft(
+            hasher.hashFieldIdentity(rawText),
+            rawText,
+            null,
+            ResearchFieldExtractionMethod.LONG_TEXT,
+            0
+        );
+    }
+
+    private LaboratoryResearchFieldCandidate candidate(
+        ResearchFieldCandidateDraft draft
+    ) {
+        return new LaboratoryResearchFieldCandidate(
+            laboratory,
+            draft,
+            DESCRIPTION_HASH,
+            ResearchFieldTextExtractor.RULE_VERSION,
+            EXTRACTED_AT
         );
     }
 }

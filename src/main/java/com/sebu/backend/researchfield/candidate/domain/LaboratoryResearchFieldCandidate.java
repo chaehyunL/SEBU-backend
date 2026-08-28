@@ -31,10 +31,16 @@ import java.util.Objects;
         name = "uk_laboratory_research_field_candidate_identity",
         columnNames = {"laboratory_id", "source_field_key"}
     ),
-    indexes = @Index(
-        name = "idx_lrf_candidate_current_review",
-        columnList = "is_stale, review_status, id"
-    )
+    indexes = {
+        @Index(
+            name = "idx_lrf_candidate_current_review",
+            columnList = "is_stale, review_status, id"
+        ),
+        @Index(
+            name = "idx_lrf_candidate_split_origin",
+            columnList = "split_from_candidate_id, id"
+        )
+    }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class LaboratoryResearchFieldCandidate extends BaseTimeEntity {
@@ -51,6 +57,10 @@ public class LaboratoryResearchFieldCandidate extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "laboratory_id", nullable = false)
     private Laboratory laboratory;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "split_from_candidate_id")
+    private LaboratoryResearchFieldCandidate splitFromCandidate;
 
     @Column(name = "source_field_key", nullable = false, length = HASH_LENGTH)
     private String sourceFieldKey;
@@ -116,6 +126,37 @@ public class LaboratoryResearchFieldCandidate extends BaseTimeEntity {
             "EXTRACTION_RULE_VERSION_INVALID"
         );
         this.extractedAt = Objects.requireNonNull(extractedAt, "EXTRACTED_AT_REQUIRED");
+    }
+
+    public static LaboratoryResearchFieldCandidate manualSplit(
+        LaboratoryResearchFieldCandidate source,
+        ResearchFieldCandidateDraft draft,
+        String extractionRuleVersion,
+        LocalDateTime extractedAt
+    ) {
+        LaboratoryResearchFieldCandidate normalizedSource = Objects.requireNonNull(
+            source,
+            "MANUAL_SPLIT_SOURCE_REQUIRED"
+        );
+        normalizedSource.ensureManualSplitSourceReviewable();
+        ResearchFieldCandidateDraft normalizedDraft = Objects.requireNonNull(
+            draft,
+            "CANDIDATE_DRAFT_REQUIRED"
+        );
+        if (normalizedDraft.extractionMethod()
+            != ResearchFieldExtractionMethod.MANUAL_SPLIT) {
+            throw new IllegalArgumentException("MANUAL_SPLIT_METHOD_REQUIRED");
+        }
+        LaboratoryResearchFieldCandidate candidate =
+            new LaboratoryResearchFieldCandidate(
+                normalizedSource.laboratory,
+                normalizedDraft,
+                normalizedSource.sourceDescriptionHash,
+                extractionRuleVersion,
+                extractedAt
+            );
+        candidate.splitFromCandidate = normalizedSource;
+        return candidate;
     }
 
     public boolean refreshFromExtraction(
@@ -197,6 +238,30 @@ public class LaboratoryResearchFieldCandidate extends BaseTimeEntity {
         review(ResearchFieldCandidateReviewStatus.REJECTED, reviewer, note, reviewedAt);
     }
 
+    public void rejectAfterManualSplit(
+        String reviewer,
+        String note,
+        LocalDateTime reviewedAt
+    ) {
+        ensureManualSplitSourceReviewable();
+        review(ResearchFieldCandidateReviewStatus.REJECTED, reviewer, note, reviewedAt);
+    }
+
+    public boolean isManualSplit() {
+        return extractionMethod == ResearchFieldExtractionMethod.MANUAL_SPLIT;
+    }
+
+    public boolean shouldBecomeStaleFromSplitSource() {
+        if (!isManualSplit() || splitFromCandidate == null) {
+            return false;
+        }
+        return splitFromCandidate.stale
+            || !Objects.equals(
+                sourceDescriptionHash,
+                splitFromCandidate.sourceDescriptionHash
+            );
+    }
+
     public boolean isCurrentAndApproved() {
         return !stale && reviewStatus == ResearchFieldCandidateReviewStatus.APPROVED;
     }
@@ -221,6 +286,16 @@ public class LaboratoryResearchFieldCandidate extends BaseTimeEntity {
         }
         if (reviewStatus != ResearchFieldCandidateReviewStatus.PENDING) {
             throw new IllegalStateException("CANDIDATE_ALREADY_REVIEWED");
+        }
+    }
+
+    private void ensureManualSplitSourceReviewable() {
+        ensureReviewable();
+        if (extractionMethod != ResearchFieldExtractionMethod.LONG_TEXT) {
+            throw new IllegalStateException("LONG_TEXT_SOURCE_REQUIRED");
+        }
+        if (candidateName != null) {
+            throw new IllegalStateException("UNRESOLVED_SOURCE_REQUIRED");
         }
     }
 

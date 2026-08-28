@@ -14,25 +14,10 @@ ALTER TABLE laboratory_research_field_candidate
         )
     );
 
-ALTER TABLE laboratory_research_field_candidate
-    ADD CONSTRAINT ck_lrf_candidate_split_origin CHECK (
-        (
-            extraction_method = 'MANUAL_SPLIT'
-            AND split_from_candidate_id IS NOT NULL
-        )
-        OR
-        (
-            extraction_method <> 'MANUAL_SPLIT'
-            AND split_from_candidate_id IS NULL
-        )
-    );
-
-ALTER TABLE laboratory_research_field_candidate
-    ADD CONSTRAINT ck_lrf_candidate_not_self_split CHECK (
-        split_from_candidate_id IS NULL
-        OR split_from_candidate_id <> id
-    );
-
+-- MySQL does not allow CHECK constraints to reference AUTO_INCREMENT columns
+-- or columns participating in foreign-key referential actions. The domain and
+-- import service enforce the MANUAL_SPLIT/source relationship; this FK keeps
+-- the persisted source reference valid and prevents source deletion.
 ALTER TABLE laboratory_research_field_candidate
     ADD CONSTRAINT fk_lrf_candidate_split_origin
         FOREIGN KEY (split_from_candidate_id)

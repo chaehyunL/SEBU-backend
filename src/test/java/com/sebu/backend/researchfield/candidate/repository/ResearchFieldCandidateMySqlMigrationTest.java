@@ -90,7 +90,7 @@ class ResearchFieldCandidateMySqlMigrationTest {
             assertThatThrownBy(() -> insertManualSplitCandidate(
                 connection,
                 laboratoryId,
-                null,
+                Long.MAX_VALUE,
                 "d".repeat(64)
             )).isInstanceOf(SQLException.class);
             long splitId = insertManualSplitCandidate(

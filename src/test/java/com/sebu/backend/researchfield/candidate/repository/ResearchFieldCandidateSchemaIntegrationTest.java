@@ -10,6 +10,7 @@ import com.sebu.backend.researchfield.candidate.domain.ResearchFieldCandidateDra
 import com.sebu.backend.researchfield.candidate.domain.ResearchFieldCandidateReviewStatus;
 import com.sebu.backend.researchfield.candidate.domain.ResearchFieldExtractionMethod;
 import com.sebu.backend.researchfield.extraction.runner.ResearchFieldCandidateExtractionRunner;
+import com.sebu.backend.researchfield.manualsplit.runner.ManualSplitImportRunner;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,6 +91,9 @@ class ResearchFieldCandidateSchemaIntegrationTest {
     void normalServerProfileDoesNotCreateTheOneTimeExtractionRunner() {
         assertThat(applicationContext.getBeansOfType(
             ResearchFieldCandidateExtractionRunner.class
+        )).isEmpty();
+        assertThat(applicationContext.getBeansOfType(
+            ManualSplitImportRunner.class
         )).isEmpty();
     }
 }

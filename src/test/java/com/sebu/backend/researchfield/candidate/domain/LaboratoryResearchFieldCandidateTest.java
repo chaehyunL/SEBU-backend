@@ -5,6 +5,7 @@ import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
 import com.sebu.backend.professor.domain.Professor;
+import com.sebu.backend.researchfield.domain.ResearchField;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -170,6 +171,114 @@ class LaboratoryResearchFieldCandidateTest {
         source.markStale();
 
         assertThat(split.shouldBecomeStaleFromSplitSource()).isTrue();
+    }
+
+    @Test
+    void approvedCurrentCandidateNeedsPromotion() {
+        LaboratoryResearchFieldCandidate candidate = candidate("인공지능");
+
+        candidate.approve("reviewer", "검수 완료", EXTRACTED_AT.plusHours(1));
+
+        assertThat(candidate.needsPromotion()).isTrue();
+        assertThat(candidate.hasBeenPromoted()).isFalse();
+        assertThat(candidate.hasConsistentPromotionState()).isTrue();
+    }
+
+    @Test
+    void recordsResearchFieldAndReviewSnapshotWhenPromoted() {
+        LaboratoryResearchFieldCandidate candidate = candidate("인공지능");
+        LocalDateTime reviewedAt = EXTRACTED_AT.plusHours(1);
+        LocalDateTime promotedAt = EXTRACTED_AT.plusHours(2);
+        ResearchField researchField = new ResearchField("인공지능");
+        candidate.approve("reviewer", "검수 완료", reviewedAt);
+
+        candidate.recordPromotion(researchField, promotedAt);
+
+        assertThat(candidate.getPromotedResearchField()).isSameAs(researchField);
+        assertThat(candidate.getPromotedAt()).isEqualTo(promotedAt);
+        assertThat(candidate.getPromotedReviewedAt()).isEqualTo(reviewedAt);
+        assertThat(candidate.getPromotedReviewRevision()).isOne();
+        assertThat(candidate.needsPromotion()).isFalse();
+        assertThat(candidate.hasBeenPromoted()).isTrue();
+        assertThat(candidate.hasConsistentPromotionState()).isTrue();
+    }
+
+    @Test
+    void candidateMustBeReadyBeforePromotion() {
+        LaboratoryResearchFieldCandidate candidate = candidate("인공지능");
+
+        assertThatThrownBy(() -> candidate.recordPromotion(
+            new ResearchField("인공지능"),
+            EXTRACTED_AT.plusHours(1)
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("CANDIDATE_NOT_READY_FOR_PROMOTION");
+    }
+
+    @Test
+    void promotionRequiresResearchFieldAndPromotionTime() {
+        LaboratoryResearchFieldCandidate candidateWithoutField = candidate("인공지능");
+        candidateWithoutField.approve(
+            "reviewer",
+            null,
+            EXTRACTED_AT.plusHours(1)
+        );
+
+        assertThatThrownBy(() -> candidateWithoutField.recordPromotion(
+            null,
+            EXTRACTED_AT.plusHours(2)
+        ))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessage("PROMOTED_RESEARCH_FIELD_REQUIRED");
+
+        LaboratoryResearchFieldCandidate candidateWithoutTime = candidate("로보틱스");
+        candidateWithoutTime.approve(
+            "reviewer",
+            null,
+            EXTRACTED_AT.plusHours(1)
+        );
+
+        assertThatThrownBy(() -> candidateWithoutTime.recordPromotion(
+            new ResearchField("로보틱스"),
+            null
+        ))
+            .isInstanceOf(NullPointerException.class)
+            .hasMessage("PROMOTED_AT_REQUIRED");
+        assertThat(candidateWithoutTime.hasBeenPromoted()).isFalse();
+        assertThat(candidateWithoutTime.hasConsistentPromotionState()).isTrue();
+    }
+
+    @Test
+    void rePromotionCanOnlyRefreshTheSameResearchField() {
+        LaboratoryResearchFieldCandidate candidate = candidate("인공지능");
+        ResearchField originalResearchField = new ResearchField("인공지능");
+        candidate.approve("reviewer", null, EXTRACTED_AT.plusHours(1));
+        candidate.recordPromotion(originalResearchField, EXTRACTED_AT.plusHours(2));
+        candidate.markStale();
+        candidate.refreshFromExtraction(
+            draft("인공지능"),
+            "c".repeat(64),
+            "sejong-v2",
+            EXTRACTED_AT.plusHours(3)
+        );
+        candidate.approve("reviewer", "재검수 완료", EXTRACTED_AT.plusHours(4));
+
+        assertThat(candidate.needsPromotion()).isTrue();
+        assertThatThrownBy(() -> candidate.recordPromotion(
+            new ResearchField("다른 연구 분야"),
+            EXTRACTED_AT.plusHours(5)
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("PROMOTED_ENTITY_CANNOT_BE_REPLACED");
+
+        candidate.recordPromotion(originalResearchField, EXTRACTED_AT.plusHours(5));
+
+        assertThat(candidate.getPromotedResearchField()).isSameAs(originalResearchField);
+        assertThat(candidate.getPromotedReviewRevision()).isEqualTo(2L);
+        assertThat(candidate.getPromotedReviewedAt()).isEqualTo(
+            EXTRACTED_AT.plusHours(4)
+        );
+        assertThat(candidate.needsPromotion()).isFalse();
     }
 
     private LaboratoryResearchFieldCandidate candidate(String candidateName) {

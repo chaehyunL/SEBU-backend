@@ -84,8 +84,12 @@ class LaboratoryApiIntegrationTest {
         laboratoryDepartmentRepository.save(new LaboratoryDepartment(lab1, computer));
         laboratoryDepartmentRepository.save(new LaboratoryDepartment(lab2, computer));
         laboratoryDepartmentRepository.save(new LaboratoryDepartment(deleted, computer));
-        ResearchField machineLearning = researchFieldRepository.save(new ResearchField("머신러닝"));
-        ResearchField aiField = researchFieldRepository.save(new ResearchField("인공지능"));
+        ResearchField machineLearning = researchFieldRepository
+            .findAllByNameIgnoreCaseForUpdate("머신러닝")
+            .getFirst();
+        ResearchField aiField = researchFieldRepository
+            .findAllByNameIgnoreCaseForUpdate("인공지능")
+            .getFirst();
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, machineLearning));
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, aiField));
         AppUser user1 = appUserRepository.save(new AppUser("one@example.com"));

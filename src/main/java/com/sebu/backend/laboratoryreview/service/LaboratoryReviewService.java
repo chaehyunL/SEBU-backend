@@ -16,6 +16,8 @@ import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewMeResponse;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewSummaryResponse;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateRequest;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateResponse;
+import com.sebu.backend.laboratoryreview.exception.InvalidReviewPageException;
+import com.sebu.backend.laboratoryreview.exception.InvalidReviewSizeException;
 import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewAlreadyExistsException;
 import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewForbiddenException;
 import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewNotFoundException;
@@ -95,6 +97,8 @@ public class LaboratoryReviewService {
             int page,
             int size
     ) {
+        validatePagination(page, size);
+
         Laboratory laboratory = laboratoryRepository.findById(laboratoryId)
                 .filter(lab -> !lab.isDeleted())
                 .orElseThrow(LaboratoryNotFoundException::new);
@@ -377,5 +381,18 @@ public class LaboratoryReviewService {
                         department.getName()
                 )
         );
+    }
+
+    private void validatePagination(
+            int page,
+            int size
+    ) {
+        if (page < 0) {
+            throw new InvalidReviewPageException();
+        }
+
+        if (size < 1 || size > 50) {
+            throw new InvalidReviewSizeException();
+        }
     }
 }

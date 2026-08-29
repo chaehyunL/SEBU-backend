@@ -2,6 +2,8 @@ package com.sebu.backend.laboratory.repository;
 
 import com.sebu.backend.laboratory.domain.Laboratory;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -28,8 +30,14 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     Optional<Laboratory> findByIdAndDeletedAtIsNull(Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select laboratory from Laboratory laboratory where laboratory.id = :laboratoryId")
-    Optional<Laboratory> findByIdForUpdate(@Param("laboratoryId") Long laboratoryId);
+    @Query("""
+        select laboratory
+        from Laboratory laboratory
+        where laboratory.id = :laboratoryId
+        """)
+    Optional<Laboratory> findByIdForUpdate(
+            @Param("laboratoryId") Long laboratoryId
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -53,6 +61,12 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
             @Param("threshold") LocalDateTime threshold
     );
 
+    /*
+     * 기존 전체 연구실 조회
+     *
+     * 기존 API 하위 호환을 위해 List 형태를 유지한다.
+     * averageRating / reviewCount만 응답에 추가한다.
+     */
     @Query("""
         select l.id as id,
                l.name as name,
@@ -66,29 +80,138 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
                d.id as departmentId,
                d.name as departmentName,
                l.recruitmentStatus as recruitmentStatus,
+
                count(distinct b.user.id) as bookmarkCount,
+
                case when sum(
                     case when b.user.id = :userId then 1 else 0 end
-               ) > 0 then true else false end as bookmarked
+               ) > 0 then true else false end as bookmarked,
+
+               avg(r.overallRating) as averageRating,
+
+               count(distinct r.id) as reviewCount
+
         from Laboratory l
+
         join l.professor p
         join l.department d
         join d.college c
+
         left join Bookmark b
             on b.laboratory = l
             and b.user.deletedAt is null
+
+        left join LaboratoryReview r
+            on r.laboratory = l
+            and r.deletedAt is null
+
         where l.deletedAt is null
-        group by l.id, l.name, l.nameSource, l.websiteUrl,
-                 p.id, p.name, p.email,
-                 c.id, c.name,
-                 d.id, d.name,
-                 l.recruitmentStatus
+
+        group by
+            l.id,
+            l.name,
+            l.nameSource,
+            l.websiteUrl,
+            p.id,
+            p.name,
+            p.email,
+            c.id,
+            c.name,
+            d.id,
+            d.name,
+            l.recruitmentStatus
+
         order by l.id
         """)
     List<LaboratorySummaryProjection> findAllSummaries(
             @Param("userId") Long userId
     );
 
+    /*
+     * RATING_DESC 조회
+     *
+     * 1. 후기가 있는 연구실 우선
+     * 2. 평균 평점 DESC
+     * 3. 후기 수 DESC
+     * 4. ID DESC
+     *
+     * 후기가 없는 연구실은 마지막에 배치한다.
+     */
+    @Query(
+            value = """
+            select l.id as id,
+                   l.name as name,
+                   l.nameSource as nameSource,
+                   l.websiteUrl as websiteUrl,
+                   p.id as professorId,
+                   p.name as professorName,
+                   p.email as professorEmail,
+                   c.id as collegeId,
+                   c.name as collegeName,
+                   d.id as departmentId,
+                   d.name as departmentName,
+                   l.recruitmentStatus as recruitmentStatus,
+
+                   count(distinct b.user.id) as bookmarkCount,
+
+                   case when sum(
+                        case when b.user.id = :userId then 1 else 0 end
+                   ) > 0 then true else false end as bookmarked,
+
+                   avg(r.overallRating) as averageRating,
+
+                   count(distinct r.id) as reviewCount
+
+            from Laboratory l
+
+            join l.professor p
+            join l.department d
+            join d.college c
+
+            left join Bookmark b
+                on b.laboratory = l
+                and b.user.deletedAt is null
+
+            left join LaboratoryReview r
+                on r.laboratory = l
+                and r.deletedAt is null
+
+            where l.deletedAt is null
+
+            group by
+                l.id,
+                l.name,
+                l.nameSource,
+                l.websiteUrl,
+                p.id,
+                p.name,
+                p.email,
+                c.id,
+                c.name,
+                d.id,
+                d.name,
+                l.recruitmentStatus
+
+            order by
+                case when count(distinct r.id) = 0 then 1 else 0 end asc,
+                avg(r.overallRating) desc,
+                count(distinct r.id) desc,
+                l.id desc
+            """,
+            countQuery = """
+            select count(l)
+            from Laboratory l
+            where l.deletedAt is null
+            """
+    )
+    Page<LaboratorySummaryProjection> findAllSummariesByRating(
+            @Param("userId") Long userId,
+            Pageable pageable
+    );
+
+    /*
+     * 특정 ID 목록의 연구실 요약 조회
+     */
     @Query("""
         select l.id as id,
                l.name as name,
@@ -102,24 +225,47 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
                d.id as departmentId,
                d.name as departmentName,
                l.recruitmentStatus as recruitmentStatus,
+
                count(distinct b.user.id) as bookmarkCount,
+
                case when sum(
                     case when b.user.id = :userId then 1 else 0 end
-               ) > 0 then true else false end as bookmarked
+               ) > 0 then true else false end as bookmarked,
+
+               avg(r.overallRating) as averageRating,
+
+               count(distinct r.id) as reviewCount
+
         from Laboratory l
+
         join l.professor p
         join l.department d
         join d.college c
+
         left join Bookmark b
             on b.laboratory = l
             and b.user.deletedAt is null
+
+        left join LaboratoryReview r
+            on r.laboratory = l
+            and r.deletedAt is null
+
         where l.deletedAt is null
           and l.id in :laboratoryIds
-        group by l.id, l.name, l.nameSource, l.websiteUrl,
-                 p.id, p.name, p.email,
-                 c.id, c.name,
-                 d.id, d.name,
-                 l.recruitmentStatus
+
+        group by
+            l.id,
+            l.name,
+            l.nameSource,
+            l.websiteUrl,
+            p.id,
+            p.name,
+            p.email,
+            c.id,
+            c.name,
+            d.id,
+            d.name,
+            l.recruitmentStatus
         """)
     List<LaboratorySummaryProjection> findSummariesByIds(
             @Param("userId") Long userId,

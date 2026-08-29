@@ -24,6 +24,7 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
         DepartmentResponse department,
         List<AffiliationResponse> affiliations,
         List<String> researchFields,
+        List<Long> researchFieldCategoryIds,
         List<ResearchFieldCategoryResponse> researchFieldCategories,
         RecruitmentStatus recruitmentStatus,
         long bookmarkCount,
@@ -42,6 +43,9 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
                     .map(AffiliationResponse::from)
                     .toList(),
                 result.researchFields(),
+                result.researchFieldCategories().stream()
+                    .map(LaboratoriesResult.ResearchFieldCategoryResult::id)
+                    .toList(),
                 result.researchFieldCategories().stream()
                     .map(ResearchFieldCategoryResponse::from)
                     .toList(),

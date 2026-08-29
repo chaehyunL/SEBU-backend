@@ -90,8 +90,12 @@ class LaboratoryApiIntegrationTest {
         ResearchField aiField = researchFieldRepository
             .findAllByNameIgnoreCaseForUpdate("인공지능")
             .getFirst();
+        ResearchField computerVision = researchFieldRepository
+            .findAllByNameIgnoreCaseForUpdate("컴퓨터 비전")
+            .getFirst();
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, machineLearning));
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, aiField));
+        laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, computerVision));
         AppUser user1 = appUserRepository.save(new AppUser("one@example.com"));
         AppUser user2 = appUserRepository.save(new AppUser("two@example.com"));
         bookmarkRepository.save(new Bookmark(user1, lab1));
@@ -117,7 +121,12 @@ class LaboratoryApiIntegrationTest {
             .andExpect(jsonPath("$.data.laboratories[0].affiliations.length()").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].affiliations[0].department.name").value("인공지능학과"))
             .andExpect(jsonPath("$.data.laboratories[0].affiliations[1].department.name").value("컴퓨터공학과"))
-            .andExpect(jsonPath("$.data.laboratories[0].researchFields.length()").value(2))
+            .andExpect(jsonPath("$.data.laboratories[0].researchFields.length()").value(3))
+            .andExpect(jsonPath("$.data.laboratories[0].researchFieldCategories.length()").value(2))
+            .andExpect(jsonPath("$.data.laboratories[0].researchFieldCategories[0].code")
+                .value("AI_ML"))
+            .andExpect(jsonPath("$.data.laboratories[0].researchFieldCategories[1].code")
+                .value("SIGNAL_MEDIA"))
             .andExpect(jsonPath("$.data.laboratories[0].bookmarkCount").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].bookmarked").value(true))
             .andExpect(jsonPath("$.data.laboratories[1].websiteUrl").doesNotExist())
@@ -126,6 +135,7 @@ class LaboratoryApiIntegrationTest {
             .andExpect(jsonPath("$.data.laboratories[1].affiliations.length()").value(1))
             .andExpect(jsonPath("$.data.laboratories[1].professor.email").doesNotExist())
             .andExpect(jsonPath("$.data.laboratories[1].researchFields").isEmpty())
+            .andExpect(jsonPath("$.data.laboratories[1].researchFieldCategories").isEmpty())
             .andExpect(jsonPath("$.data.laboratories[1].bookmarkCount").value(0));
     }
 
@@ -138,11 +148,11 @@ class LaboratoryApiIntegrationTest {
     }
 
     @Test
-    void queryCountStaysAtTwoWithoutNPlusOne() {
+    void queryCountStaysFixedWithoutNPlusOne() {
         when(currentUserProvider.currentUserId()).thenReturn(Optional.of(firstUserId));
         Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
         statistics.clear();
         assertThat(queryService.getAll().laboratories()).hasSize(2);
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(4);
     }
 }

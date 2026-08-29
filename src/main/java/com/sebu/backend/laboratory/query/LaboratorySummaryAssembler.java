@@ -16,6 +16,7 @@ public class LaboratorySummaryAssembler {
         return assemble(
             projection,
             researchFields,
+            List.of(),
             List.of(primaryAffiliation(projection))
         );
     }
@@ -23,6 +24,20 @@ public class LaboratorySummaryAssembler {
     public LaboratoriesResult.LaboratoryResult assemble(
         LaboratorySummaryProjection projection,
         List<String> researchFields,
+        List<LaboratoriesResult.AffiliationResult> affiliations
+    ) {
+        return assemble(
+            projection,
+            researchFields,
+            List.of(),
+            affiliations
+        );
+    }
+
+    public LaboratoriesResult.LaboratoryResult assemble(
+        LaboratorySummaryProjection projection,
+        List<String> researchFields,
+        List<LaboratoriesResult.ResearchFieldCategoryResult> researchFieldCategories,
         List<LaboratoriesResult.AffiliationResult> affiliations
     ) {
         List<LaboratoriesResult.AffiliationResult> resolvedAffiliations =
@@ -54,6 +69,7 @@ public class LaboratorySummaryAssembler {
 
                 resolvedAffiliations,
                 researchFields,
+                researchFieldCategories,
                 projection.getRecruitmentStatus(),
                 projection.getBookmarkCount(),
                 projection.getBookmarked()

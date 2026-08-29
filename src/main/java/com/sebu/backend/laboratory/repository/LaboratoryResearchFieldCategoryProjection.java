@@ -1,4 +1,4 @@
-package com.sebu.backend.researchfield.category.repository;
+package com.sebu.backend.laboratory.repository;
 
 public interface LaboratoryResearchFieldCategoryProjection {
     Long getLaboratoryId();
@@ -8,4 +8,6 @@ public interface LaboratoryResearchFieldCategoryProjection {
     String getCategoryCode();
 
     String getCategoryName();
+
+    Integer getDisplayOrder();
 }

@@ -7,6 +7,8 @@ import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
 import com.sebu.backend.laboratory.repository.LaboratoryAffiliationProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryDepartmentRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
+import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldCategoryProjection;
+import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldCategoryQueryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,10 @@ class LaboratoryQueryServiceTest {
     LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
 
     @Mock
+    LaboratoryResearchFieldCategoryQueryRepository
+        laboratoryResearchFieldCategoryQueryRepository;
+
+    @Mock
     CurrentUserProvider currentUserProvider;
 
     @Mock
@@ -45,6 +51,12 @@ class LaboratoryQueryServiceTest {
 
     @Mock
     LaboratoryAffiliationProjection secondaryAffiliation;
+
+    @Mock
+    LaboratoryResearchFieldCategoryProjection categoryProjection;
+
+    @Mock
+    LaboratoryResearchFieldCategoryProjection duplicateCategoryProjection;
 
     @Spy
     LaboratorySummaryAssembler laboratorySummaryAssembler = new LaboratorySummaryAssembler();
@@ -70,8 +82,14 @@ class LaboratoryQueryServiceTest {
         when(summary.getBookmarked()).thenReturn(false);
         when(laboratoryResearchFieldRepository.findFieldsByLaboratoryIds(List.of(1L)))
             .thenReturn(List.of());
+        when(laboratoryResearchFieldCategoryQueryRepository
+            .findAllByLaboratoryIds(List.of(1L)))
+            .thenReturn(List.of(categoryProjection, duplicateCategoryProjection));
         when(laboratoryDepartmentRepository.findAffiliationsByLaboratoryIds(List.of(1L)))
             .thenReturn(List.of(primaryAffiliation, secondaryAffiliation));
+        mockCategory(categoryProjection, 1L, 10L, "AI_ML", "인공지능·기계학습");
+        when(duplicateCategoryProjection.getLaboratoryId()).thenReturn(1L);
+        when(duplicateCategoryProjection.getCategoryId()).thenReturn(10L);
         mockAffiliation(
             primaryAffiliation,
             1L,
@@ -97,6 +115,9 @@ class LaboratoryQueryServiceTest {
         assertThat(laboratory.affiliations())
             .extracting(affiliation -> affiliation.department().name())
             .containsExactly("컴퓨터공학과", "정보보호학과");
+        assertThat(laboratory.researchFieldCategories())
+            .extracting(category -> category.code())
+            .containsExactly("AI_ML");
     }
 
     @Test
@@ -108,6 +129,7 @@ class LaboratoryQueryServiceTest {
 
         verifyNoInteractions(
             laboratoryResearchFieldRepository,
+            laboratoryResearchFieldCategoryQueryRepository,
             laboratoryDepartmentRepository
         );
     }
@@ -125,5 +147,18 @@ class LaboratoryQueryServiceTest {
         when(affiliation.getCollegeName()).thenReturn(collegeName);
         when(affiliation.getDepartmentId()).thenReturn(departmentId);
         when(affiliation.getDepartmentName()).thenReturn(departmentName);
+    }
+
+    private void mockCategory(
+        LaboratoryResearchFieldCategoryProjection category,
+        Long laboratoryId,
+        Long categoryId,
+        String categoryCode,
+        String categoryName
+    ) {
+        when(category.getLaboratoryId()).thenReturn(laboratoryId);
+        when(category.getCategoryId()).thenReturn(categoryId);
+        when(category.getCategoryCode()).thenReturn(categoryCode);
+        when(category.getCategoryName()).thenReturn(categoryName);
     }
 }

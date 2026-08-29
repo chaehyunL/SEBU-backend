@@ -1,6 +1,7 @@
 package com.sebu.backend.community.profile.service;
 
 import com.sebu.backend.college.domain.College;
+import com.sebu.backend.community.bookmark.repository.CommunityPostBookmarkRepository;
 import com.sebu.backend.community.comment.repository.CommunityCommentRepository;
 import com.sebu.backend.community.common.CommunityAuthorMapper;
 import com.sebu.backend.community.common.repository.PostCountProjection;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,11 +29,14 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CommunityProfileQueryService {
     private static final int MAX_PAGE_SIZE = 50;
+    private static final long FIRST_POST_MIN_COUNT = 1;
+    private static final long POPULAR_AUTHOR_MIN_BOOKMARK_COUNT = 5;
 
     private final AppUserRepository appUserRepository;
     private final CommunityPostRepository postRepository;
     private final CommunityCommentRepository commentRepository;
     private final CommunityPostLikeRepository likeRepository;
+    private final CommunityPostBookmarkRepository bookmarkRepository;
     private final CommunityAuthorMapper authorMapper;
 
     @Transactional(readOnly = true)
@@ -53,6 +58,10 @@ public class CommunityProfileQueryService {
         Map<Long, Long> commentCounts = postIds.isEmpty()
                 ? Map.of()
                 : countMap(commentRepository.countActiveByPostIds(postIds));
+        long writtenPostCount = posts.getTotalElements();
+        long receivedBookmarkCount = writtenPostCount == 0
+                ? 0
+                : bookmarkRepository.countActiveReceivedByAuthorId(userId);
 
         CommunityProfileResponse.Profile profile = new CommunityProfileResponse.Profile(
                 user.getId(),
@@ -61,10 +70,10 @@ public class CommunityProfileQueryService {
                 toDepartment(user.getMajorDepartment()),
                 user.getCreatedAt(),
                 user.getIntroduction(),
-                List.of()
+                badges(writtenPostCount, receivedBookmarkCount)
         );
         CommunityProfileResponse.Stats stats = new CommunityProfileResponse.Stats(
-                posts.getTotalElements(),
+                writtenPostCount,
                 likeRepository.countReceivedByAuthorId(userId),
                 commentRepository.countActiveByAuthorId(userId)
         );
@@ -86,6 +95,20 @@ public class CommunityProfileQueryService {
                 posts.hasNext()
         );
         return new CommunityProfileResponse(profile, stats, responsePosts);
+    }
+
+    private List<CommunityProfileResponse.Badge> badges(
+            long writtenPostCount,
+            long receivedBookmarkCount
+    ) {
+        List<CommunityProfileResponse.Badge> badges = new ArrayList<>();
+        if (writtenPostCount >= FIRST_POST_MIN_COUNT) {
+            badges.add(new CommunityProfileResponse.Badge("FIRST_POST", "첫 글"));
+        }
+        if (receivedBookmarkCount >= POPULAR_AUTHOR_MIN_BOOKMARK_COUNT) {
+            badges.add(new CommunityProfileResponse.Badge("POPULAR_AUTHOR", "인기 작성자"));
+        }
+        return List.copyOf(badges);
     }
 
     private CommunityProfileResponse.MajorDepartment toDepartment(Department department) {

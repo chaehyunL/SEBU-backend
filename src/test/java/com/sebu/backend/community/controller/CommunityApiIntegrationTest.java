@@ -619,11 +619,44 @@ class CommunityApiIntegrationTest {
                 .andExpect(jsonPath("$.data.profile.nickname").value("프로필닉네임"))
                 .andExpect(jsonPath("$.data.profile.name").doesNotExist())
                 .andExpect(jsonPath("$.data.stats.writtenPostCount").value(2))
+                .andExpect(jsonPath("$.data.profile.badges[0].code").value("FIRST_POST"))
+                .andExpect(jsonPath("$.data.profile.badges[0].label").value("첫 글"))
                 .andExpect(jsonPath("$.data.stats.receivedLikeCount").value(2))
                 .andExpect(jsonPath("$.data.stats.writtenCommentCount").value(1))
                 .andExpect(jsonPath("$.data.posts.totalElements").value(2))
                 .andExpect(jsonPath("$.data.posts.items.length()").value(2))
                 .andExpect(content().string(not(containsString(realName))));
+    }
+
+    @Test
+    void publicProfileAwardsPopularAuthorAtFiveActiveReceivedBookmarks() throws Exception {
+        AppUser profileOwner = userWithNickname(
+                "badge-profile-owner",
+                "뱃지프로필실명",
+                "뱃지프로필"
+        );
+        CommunityPost post = savePost(
+                profileOwner,
+                CommunityPostCategory.FREE,
+                "인기 작성자 뱃지 글",
+                "인기 작성자 뱃지 본문"
+        );
+        for (int index = 0; index < 5; index++) {
+            AppUser bookmarker = userWithNickname(
+                    "badge-bookmarker-" + index,
+                    "뱃지북마커실명" + index,
+                    "뱃지북마커" + index
+            );
+            bookmarkRepository.save(new CommunityPostBookmark(bookmarker, post));
+        }
+        bookmarkRepository.flush();
+
+        mockMvc.perform(get("/api/v1/users/{userId}/community-profile", profileOwner.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.profile.badges.length()").value(2))
+                .andExpect(jsonPath("$.data.profile.badges[0].code").value("FIRST_POST"))
+                .andExpect(jsonPath("$.data.profile.badges[1].code").value("POPULAR_AUTHOR"))
+                .andExpect(jsonPath("$.data.profile.badges[1].label").value("인기 작성자"));
     }
 
     @Test

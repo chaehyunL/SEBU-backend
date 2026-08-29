@@ -122,6 +122,10 @@ class LaboratoryApiIntegrationTest {
             .andExpect(jsonPath("$.data.laboratories[0].affiliations[0].department.name").value("인공지능학과"))
             .andExpect(jsonPath("$.data.laboratories[0].affiliations[1].department.name").value("컴퓨터공학과"))
             .andExpect(jsonPath("$.data.laboratories[0].researchFields.length()").value(3))
+            .andExpect(jsonPath("$.data.laboratories[0].researchFieldCategoryIds[0]")
+                .value(1))
+            .andExpect(jsonPath("$.data.laboratories[0].researchFieldCategoryIds[1]")
+                .value(6))
             .andExpect(jsonPath("$.data.laboratories[0].researchFieldCategories.length()").value(2))
             .andExpect(jsonPath("$.data.laboratories[0].researchFieldCategories[0].code")
                 .value("AI_ML"))
@@ -135,6 +139,7 @@ class LaboratoryApiIntegrationTest {
             .andExpect(jsonPath("$.data.laboratories[1].affiliations.length()").value(1))
             .andExpect(jsonPath("$.data.laboratories[1].professor.email").doesNotExist())
             .andExpect(jsonPath("$.data.laboratories[1].researchFields").isEmpty())
+            .andExpect(jsonPath("$.data.laboratories[1].researchFieldCategoryIds").isEmpty())
             .andExpect(jsonPath("$.data.laboratories[1].researchFieldCategories").isEmpty())
             .andExpect(jsonPath("$.data.laboratories[1].bookmarkCount").value(0));
     }

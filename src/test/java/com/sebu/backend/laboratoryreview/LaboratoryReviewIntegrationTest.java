@@ -1,25 +1,25 @@
 package com.sebu.backend.laboratoryreview;
 
 import com.sebu.backend.college.domain.College;
-import com.sebu.backend.college.repository.CollegeRepository;
 import com.sebu.backend.department.domain.Department;
-import com.sebu.backend.department.repository.DepartmentRepository;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
-import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratoryreview.domain.Atmosphere;
 import com.sebu.backend.laboratoryreview.domain.Compensation;
+import com.sebu.backend.laboratoryreview.domain.LaboratoryReview;
 import com.sebu.backend.laboratoryreview.domain.PaperOpportunity;
 import com.sebu.backend.laboratoryreview.domain.ParticipationTerm;
 import com.sebu.backend.laboratoryreview.domain.ResearchIntensity;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewCreateRequest;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateRequest;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewAlreadyExistsException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewForbiddenException;
 import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewRepository;
 import com.sebu.backend.laboratoryreview.service.LaboratoryReviewService;
 import com.sebu.backend.professor.domain.Professor;
-import com.sebu.backend.professor.repository.ProfessorRepository;
 import com.sebu.backend.user.domain.AppUser;
-import com.sebu.backend.user.repository.AppUserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,28 +38,15 @@ class LaboratoryReviewIntegrationTest {
     @Autowired
     LaboratoryReviewRepository laboratoryReviewRepository;
 
-    @Autowired
-    LaboratoryRepository laboratoryRepository;
-
-    @Autowired
-    AppUserRepository appUserRepository;
-
-    @Autowired
-    CollegeRepository collegeRepository;
-
-    @Autowired
-    DepartmentRepository departmentRepository;
-
-    @Autowired
-    ProfessorRepository professorRepository;
+    @PersistenceContext
+    EntityManager entityManager;
 
     @Test
     void createsLaboratoryReview() {
         // given
         TestFixture fixture = createFixture();
 
-        LaboratoryReviewCreateRequest request =
-                createRequest();
+        LaboratoryReviewCreateRequest request = createRequest();
 
         // when
         var response = laboratoryReviewService.createReview(
@@ -71,7 +58,7 @@ class LaboratoryReviewIntegrationTest {
         // then
         assertThat(response.reviewId()).isNotNull();
 
-        var saved = laboratoryReviewRepository
+        LaboratoryReview saved = laboratoryReviewRepository
                 .findById(response.reviewId())
                 .orElseThrow();
 
@@ -80,8 +67,14 @@ class LaboratoryReviewIntegrationTest {
                 .isEqualTo(ResearchIntensity.LOW);
         assertThat(saved.getCompensation())
                 .isEqualTo(Compensation.SUFFICIENT);
+        assertThat(saved.getPaperOpportunity())
+                .isEqualTo(PaperOpportunity.AVERAGE);
         assertThat(saved.getAtmosphere())
                 .isEqualTo(Atmosphere.COLLABORATIVE);
+        assertThat(saved.getParticipationYear()).isEqualTo(2026);
+        assertThat(saved.getParticipationTerm())
+                .isEqualTo(ParticipationTerm.FIRST_SEMESTER);
+        assertThat(saved.isDeleted()).isFalse();
     }
 
     @Test
@@ -89,8 +82,7 @@ class LaboratoryReviewIntegrationTest {
         // given
         TestFixture fixture = createFixture();
 
-        LaboratoryReviewCreateRequest request =
-                createRequest();
+        LaboratoryReviewCreateRequest request = createRequest();
 
         laboratoryReviewService.createReview(
                 fixture.laboratoryId(),
@@ -106,8 +98,12 @@ class LaboratoryReviewIntegrationTest {
                         request
                 )
         )
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("LABORATORY_REVIEW_ALREADY_EXISTS");
+                .isInstanceOf(
+                        LaboratoryReviewAlreadyExistsException.class
+                )
+                .hasMessage(
+                        "LABORATORY_REVIEW_ALREADY_EXISTS"
+                );
     }
 
     @Test
@@ -132,7 +128,68 @@ class LaboratoryReviewIntegrationTest {
         // then
         assertThat(response.totalElements()).isEqualTo(1);
         assertThat(response.reviews()).hasSize(1);
-        assertThat(response.reviews().get(0).mine()).isTrue();
+
+        var review = response.reviews().get(0);
+
+        assertThat(review.overallRating()).isEqualTo(5);
+        assertThat(review.researchIntensity()).isEqualTo("LOW");
+        assertThat(review.compensation()).isEqualTo("SUFFICIENT");
+        assertThat(review.mine()).isTrue();
+    }
+
+    @Test
+    void returnsMineFalseForAnotherUser() {
+        // given
+        TestFixture fixture = createFixture();
+
+        laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        );
+
+        AppUser anotherUser =
+                new AppUser("another-reviewer@test.com");
+
+        entityManager.persist(anotherUser);
+        entityManager.flush();
+
+        // when
+        var response = laboratoryReviewService.getReviews(
+                fixture.laboratoryId(),
+                anotherUser.getId(),
+                0,
+                20
+        );
+
+        // then
+        assertThat(response.reviews()).hasSize(1);
+        assertThat(response.reviews().get(0).mine()).isFalse();
+    }
+
+    @Test
+    void returnsMyReview() {
+        // given
+        TestFixture fixture = createFixture();
+
+        Long reviewId = laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        ).reviewId();
+
+        // when
+        var response = laboratoryReviewService.getMyReview(
+                fixture.laboratoryId(),
+                fixture.userId()
+        );
+
+        // then
+        assertThat(response.review().id()).isEqualTo(reviewId);
+        assertThat(response.review().overallRating()).isEqualTo(5);
+        assertThat(response.review().participationYear()).isEqualTo(2026);
+        assertThat(response.review().participationTerm())
+                .isEqualTo("FIRST_SEMESTER");
     }
 
     @Test
@@ -140,13 +197,11 @@ class LaboratoryReviewIntegrationTest {
         // given
         TestFixture fixture = createFixture();
 
-        Long reviewId = laboratoryReviewService
-                .createReview(
-                        fixture.laboratoryId(),
-                        fixture.userId(),
-                        createRequest()
-                )
-                .reviewId();
+        Long reviewId = laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        ).reviewId();
 
         LaboratoryReviewUpdateRequest request =
                 new LaboratoryReviewUpdateRequest(
@@ -154,8 +209,8 @@ class LaboratoryReviewIntegrationTest {
                         ResearchIntensity.MEDIUM,
                         Compensation.SUFFICIENT,
                         PaperOpportunity.MANY,
-                        Atmosphere.COLLABORATIVE,
-                        "수정된 후기 내용이며 최소 글자 수 조건을 만족합니다.",
+                        Atmosphere.NORMAL,
+                        "실제 참여 경험을 반영해서 충분한 길이로 후기 내용을 수정했습니다.",
                         2026,
                         ParticipationTerm.FIRST_SEMESTER
                 );
@@ -168,8 +223,11 @@ class LaboratoryReviewIntegrationTest {
                 request
         );
 
+        entityManager.flush();
+        entityManager.clear();
+
         // then
-        var updated = laboratoryReviewRepository
+        LaboratoryReview updated = laboratoryReviewRepository
                 .findById(reviewId)
                 .orElseThrow();
 
@@ -178,6 +236,8 @@ class LaboratoryReviewIntegrationTest {
                 .isEqualTo(ResearchIntensity.MEDIUM);
         assertThat(updated.getPaperOpportunity())
                 .isEqualTo(PaperOpportunity.MANY);
+        assertThat(updated.getAtmosphere())
+                .isEqualTo(Atmosphere.NORMAL);
     }
 
     @Test
@@ -185,18 +245,17 @@ class LaboratoryReviewIntegrationTest {
         // given
         TestFixture fixture = createFixture();
 
-        Long reviewId = laboratoryReviewService
-                .createReview(
-                        fixture.laboratoryId(),
-                        fixture.userId(),
-                        createRequest()
-                )
-                .reviewId();
+        Long reviewId = laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        ).reviewId();
 
         AppUser anotherUser =
-                appUserRepository.save(
-                        new AppUser("another@example.com")
-                );
+                new AppUser("another-user@test.com");
+
+        entityManager.persist(anotherUser);
+        entityManager.flush();
 
         LaboratoryReviewUpdateRequest request =
                 new LaboratoryReviewUpdateRequest(
@@ -205,7 +264,7 @@ class LaboratoryReviewIntegrationTest {
                         Compensation.SUFFICIENT,
                         PaperOpportunity.MANY,
                         Atmosphere.NORMAL,
-                        "다른 사용자가 수정하려고 시도하는 테스트 후기 내용입니다.",
+                        "다른 사용자가 임의로 수정하려고 하는 충분한 길이의 후기입니다.",
                         2026,
                         ParticipationTerm.FIRST_SEMESTER
                 );
@@ -219,22 +278,57 @@ class LaboratoryReviewIntegrationTest {
                         request
                 )
         )
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("LABORATORY_REVIEW_FORBIDDEN");
+                .isInstanceOf(
+                        LaboratoryReviewForbiddenException.class
+                )
+                .hasMessage(
+                        "LABORATORY_REVIEW_FORBIDDEN"
+                );
     }
 
     @Test
-    void excludesDeletedReviewFromListAndSummary() {
+    void rejectsDeleteByAnotherUser() {
         // given
         TestFixture fixture = createFixture();
 
-        Long reviewId = laboratoryReviewService
-                .createReview(
+        Long reviewId = laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        ).reviewId();
+
+        AppUser anotherUser =
+                new AppUser("delete-attacker@test.com");
+
+        entityManager.persist(anotherUser);
+        entityManager.flush();
+
+        // when & then
+        assertThatThrownBy(() ->
+                laboratoryReviewService.deleteReview(
                         fixture.laboratoryId(),
-                        fixture.userId(),
-                        createRequest()
+                        reviewId,
+                        anotherUser.getId()
                 )
-                .reviewId();
+        )
+                .isInstanceOf(
+                        LaboratoryReviewForbiddenException.class
+                )
+                .hasMessage(
+                        "LABORATORY_REVIEW_FORBIDDEN"
+                );
+    }
+
+    @Test
+    void deletesReviewAndExcludesItFromListAndSummary() {
+        // given
+        TestFixture fixture = createFixture();
+
+        Long reviewId = laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        ).reviewId();
 
         // when
         laboratoryReviewService.deleteReview(
@@ -243,6 +337,8 @@ class LaboratoryReviewIntegrationTest {
                 fixture.userId()
         );
 
+        entityManager.flush();
+
         var reviews = laboratoryReviewService.getReviews(
                 fixture.laboratoryId(),
                 fixture.userId(),
@@ -250,15 +346,124 @@ class LaboratoryReviewIntegrationTest {
                 20
         );
 
+        var summary = laboratoryReviewService.getReviewSummary(
+                fixture.laboratoryId()
+        );
+
+        // then
+        assertThat(reviews.totalElements()).isZero();
+        assertThat(reviews.reviews()).isEmpty();
+
+        assertThat(summary.reviewCount()).isZero();
+        assertThat(summary.averageRating()).isNull();
+
+        assertThat(summary.ratingDistribution())
+                .allSatisfy(distribution -> {
+                    assertThat(distribution.count()).isZero();
+                    assertThat(distribution.percentage()).isZero();
+                });
+    }
+
+    @Test
+    void allowsNewReviewAfterPreviousReviewWasDeleted() {
+        // given
+        TestFixture fixture = createFixture();
+
+        Long firstReviewId =
+                laboratoryReviewService.createReview(
+                        fixture.laboratoryId(),
+                        fixture.userId(),
+                        createRequest()
+                ).reviewId();
+
+        laboratoryReviewService.deleteReview(
+                fixture.laboratoryId(),
+                firstReviewId,
+                fixture.userId()
+        );
+
+        entityManager.flush();
+
+        // when
+        var secondResponse =
+                laboratoryReviewService.createReview(
+                        fixture.laboratoryId(),
+                        fixture.userId(),
+                        createRequest()
+                );
+
+        // then
+        assertThat(secondResponse.reviewId()).isNotNull();
+        assertThat(secondResponse.reviewId())
+                .isNotEqualTo(firstReviewId);
+    }
+
+    @Test
+    void calculatesReviewSummary() {
+        // given
+        TestFixture fixture = createFixture();
+
+        laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        );
+
+        AppUser secondUser =
+                new AppUser("second-reviewer@test.com");
+
+        entityManager.persist(secondUser);
+        entityManager.flush();
+
+        LaboratoryReviewCreateRequest secondRequest =
+                new LaboratoryReviewCreateRequest(
+                        3,
+                        ResearchIntensity.HIGH,
+                        Compensation.NONE,
+                        PaperOpportunity.MANY,
+                        Atmosphere.COMPETITIVE,
+                        "두 번째 사용자가 작성한 충분한 길이의 연구실 후기 내용입니다.",
+                        2026,
+                        ParticipationTerm.SECOND_SEMESTER
+                );
+
+        laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                secondUser.getId(),
+                secondRequest
+        );
+
+        // when
         var summary =
                 laboratoryReviewService.getReviewSummary(
                         fixture.laboratoryId()
                 );
 
         // then
-        assertThat(reviews.totalElements()).isZero();
-        assertThat(summary.reviewCount()).isZero();
-        assertThat(summary.averageRating()).isNull();
+        assertThat(summary.reviewCount()).isEqualTo(2);
+        assertThat(summary.averageRating()).isEqualTo(4.0);
+
+        var fiveStar = summary.ratingDistribution()
+                .stream()
+                .filter(distribution ->
+                        distribution.rating() == 5
+                )
+                .findFirst()
+                .orElseThrow();
+
+        var threeStar = summary.ratingDistribution()
+                .stream()
+                .filter(distribution ->
+                        distribution.rating() == 3
+                )
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(fiveStar.count()).isEqualTo(1);
+        assertThat(fiveStar.percentage()).isEqualTo(50.0);
+
+        assertThat(threeStar.count()).isEqualTo(1);
+        assertThat(threeStar.percentage()).isEqualTo(50.0);
     }
 
     private LaboratoryReviewCreateRequest createRequest() {
@@ -275,38 +480,45 @@ class LaboratoryReviewIntegrationTest {
     }
 
     private TestFixture createFixture() {
-        College college = collegeRepository.save(
-                new College("테스트 단과대학")
-        );
+        College college =
+                new College("테스트 단과대학");
 
-        Department department = departmentRepository.save(
+        entityManager.persist(college);
+
+        Department department =
                 new Department(
                         college,
                         "테스트학과"
-                )
-        );
+                );
 
-        Professor professor = professorRepository.save(
+        entityManager.persist(department);
+
+        Professor professor =
                 new Professor(
                         department,
                         "김교수",
                         "professor@test.com"
-                )
-        );
+                );
 
-        Laboratory laboratory = laboratoryRepository.save(
+        entityManager.persist(professor);
+
+        Laboratory laboratory =
                 new Laboratory(
                         professor,
                         department,
                         "테스트 연구실",
                         "https://example.com",
                         RecruitmentStatus.RECRUITING
-                )
-        );
+                );
 
-        AppUser user = appUserRepository.save(
-                new AppUser("reviewer@test.com")
-        );
+        entityManager.persist(laboratory);
+
+        AppUser user =
+                new AppUser("reviewer@test.com");
+
+        entityManager.persist(user);
+
+        entityManager.flush();
 
         return new TestFixture(
                 laboratory.getId(),

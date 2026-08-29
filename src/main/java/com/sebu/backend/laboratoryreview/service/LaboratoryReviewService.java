@@ -1,6 +1,7 @@
 package com.sebu.backend.laboratoryreview.service;
 
 import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratoryreview.domain.Atmosphere;
 import com.sebu.backend.laboratoryreview.domain.Compensation;
@@ -15,8 +16,12 @@ import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewMeResponse;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewSummaryResponse;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateRequest;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateResponse;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewAlreadyExistsException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewForbiddenException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewNotFoundException;
 import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewRepository;
 import com.sebu.backend.user.domain.AppUser;
+import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,9 +42,6 @@ public class LaboratoryReviewService {
     private final LaboratoryRepository laboratoryRepository;
     private final AppUserRepository appUserRepository;
 
-    /*
-     * 후기 작성
-     */
     @Transactional
     public LaboratoryReviewCreateResponse createReview(
             Long laboratoryId,
@@ -48,15 +50,11 @@ public class LaboratoryReviewService {
     ) {
         Laboratory laboratory = laboratoryRepository.findById(laboratoryId)
                 .filter(lab -> !lab.isDeleted())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("LABORATORY_NOT_FOUND")
-                );
+                .orElseThrow(LaboratoryNotFoundException::new);
 
         AppUser author = appUserRepository.findById(userId)
                 .filter(user -> !user.isDeleted())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("USER_NOT_FOUND")
-                );
+                .orElseThrow(UserNotFoundException::new);
 
         boolean alreadyExists =
                 laboratoryReviewRepository
@@ -66,9 +64,7 @@ public class LaboratoryReviewService {
                         );
 
         if (alreadyExists) {
-            throw new IllegalStateException(
-                    "LABORATORY_REVIEW_ALREADY_EXISTS"
-            );
+            throw new LaboratoryReviewAlreadyExistsException();
         }
 
         LaboratoryReview review = new LaboratoryReview(
@@ -92,9 +88,6 @@ public class LaboratoryReviewService {
         );
     }
 
-    /*
-     * 특정 연구실 후기 목록 조회
-     */
     @Transactional(readOnly = true)
     public LaboratoryReviewListResponse getReviews(
             Long laboratoryId,
@@ -104,9 +97,7 @@ public class LaboratoryReviewService {
     ) {
         Laboratory laboratory = laboratoryRepository.findById(laboratoryId)
                 .filter(lab -> !lab.isDeleted())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("LABORATORY_NOT_FOUND")
-                );
+                .orElseThrow(LaboratoryNotFoundException::new);
 
         PageRequest pageable = PageRequest.of(
                 page,
@@ -143,9 +134,6 @@ public class LaboratoryReviewService {
         );
     }
 
-    /*
-     * 현재 로그인 사용자의 해당 연구실 후기 조회
-     */
     @Transactional(readOnly = true)
     public LaboratoryReviewMeResponse getMyReview(
             Long laboratoryId,
@@ -153,9 +141,7 @@ public class LaboratoryReviewService {
     ) {
         laboratoryRepository.findById(laboratoryId)
                 .filter(lab -> !lab.isDeleted())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("LABORATORY_NOT_FOUND")
-                );
+                .orElseThrow(LaboratoryNotFoundException::new);
 
         LaboratoryReview review =
                 laboratoryReviewRepository
@@ -163,18 +149,13 @@ public class LaboratoryReviewService {
                                 laboratoryId,
                                 userId
                         )
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "LABORATORY_REVIEW_NOT_FOUND"
-                                )
+                        .orElseThrow(
+                                LaboratoryReviewNotFoundException::new
                         );
 
         return LaboratoryReviewMeResponse.from(review);
     }
 
-    /*
-     * 후기 수정
-     */
     @Transactional
     public LaboratoryReviewUpdateResponse updateReview(
             Long laboratoryId,
@@ -188,9 +169,7 @@ public class LaboratoryReviewService {
         );
 
         if (!review.isWrittenBy(userId)) {
-            throw new IllegalStateException(
-                    "LABORATORY_REVIEW_FORBIDDEN"
-            );
+            throw new LaboratoryReviewForbiddenException();
         }
 
         review.update(
@@ -210,9 +189,6 @@ public class LaboratoryReviewService {
         );
     }
 
-    /*
-     * 후기 삭제
-     */
     @Transactional
     public LaboratoryReviewDeleteResponse deleteReview(
             Long laboratoryId,
@@ -225,9 +201,7 @@ public class LaboratoryReviewService {
         );
 
         if (!review.isWrittenBy(userId)) {
-            throw new IllegalStateException(
-                    "LABORATORY_REVIEW_FORBIDDEN"
-            );
+            throw new LaboratoryReviewForbiddenException();
         }
 
         review.softDelete();
@@ -237,18 +211,13 @@ public class LaboratoryReviewService {
         );
     }
 
-    /*
-     * 연구실 후기 평가 요약 조회
-     */
     @Transactional(readOnly = true)
     public LaboratoryReviewSummaryResponse getReviewSummary(
             Long laboratoryId
     ) {
         Laboratory laboratory = laboratoryRepository.findById(laboratoryId)
                 .filter(lab -> !lab.isDeleted())
-                .orElseThrow(() ->
-                        new IllegalArgumentException("LABORATORY_NOT_FOUND")
-                );
+                .orElseThrow(LaboratoryNotFoundException::new);
 
         List<LaboratoryReview> reviews =
                 laboratoryReviewRepository
@@ -303,9 +272,6 @@ public class LaboratoryReviewService {
         );
     }
 
-    /*
-     * 삭제되지 않은 특정 후기 조회
-     */
     private LaboratoryReview findActiveReview(
             Long laboratoryId,
             Long reviewId
@@ -313,24 +279,17 @@ public class LaboratoryReviewService {
         LaboratoryReview review =
                 laboratoryReviewRepository
                         .findByIdAndDeletedAtIsNull(reviewId)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "LABORATORY_REVIEW_NOT_FOUND"
-                                )
+                        .orElseThrow(
+                                LaboratoryReviewNotFoundException::new
                         );
 
         if (!review.getLaboratory().getId().equals(laboratoryId)) {
-            throw new IllegalArgumentException(
-                    "LABORATORY_REVIEW_NOT_FOUND"
-            );
+            throw new LaboratoryReviewNotFoundException();
         }
 
         return review;
     }
 
-    /*
-     * 별점 5~1점 분포 계산
-     */
     private List<LaboratoryReviewSummaryResponse.RatingDistribution>
     createRatingDistribution(
             List<LaboratoryReview> reviews
@@ -356,9 +315,6 @@ public class LaboratoryReviewService {
                 .toList();
     }
 
-    /*
-     * 연구 강도 / 인건비 / 논문 기회 / 분위기 분포 계산
-     */
     private <E extends Enum<E>>
     List<LaboratoryReviewSummaryResponse.EvaluationDistribution>
     createEnumDistribution(
@@ -386,9 +342,6 @@ public class LaboratoryReviewService {
                 .toList();
     }
 
-    /*
-     * 비율 계산
-     */
     private double percentage(
             long count,
             long total
@@ -400,9 +353,6 @@ public class LaboratoryReviewService {
         return (count * 100.0) / total;
     }
 
-    /*
-     * 평가 요약에 포함할 연구실 정보 생성
-     */
     private LaboratoryReviewSummaryResponse.LaboratoryInfo
     createLaboratoryInfo(
             Laboratory laboratory

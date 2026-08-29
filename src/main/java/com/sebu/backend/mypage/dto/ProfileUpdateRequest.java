@@ -8,7 +8,6 @@ import jakarta.validation.constraints.Size;
 
 public record ProfileUpdateRequest (
 
-    @Size(max = 30)
     String nickname,
 
     @NotNull

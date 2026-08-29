@@ -26,10 +26,16 @@ import java.util.Objects;
 @Entity
 @Table(
         name = "app_user",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_app_user_provider_identity",
-                columnNames = {"provider", "provider_user_id"}
-        )
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_app_user_provider_identity",
+                        columnNames = {"provider", "provider_user_id"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_app_user_nickname_normalized",
+                        columnNames = "nickname_normalized"
+                )
+        }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AppUser extends BaseTimeEntity {
@@ -56,6 +62,9 @@ public class AppUser extends BaseTimeEntity {
 
     @Column(length = 30)
     private String nickname;
+
+    @Column(name = "nickname_normalized", length = 100)
+    private String nicknameNormalized;
 
     private Short grade;
 
@@ -198,7 +207,7 @@ public class AppUser extends BaseTimeEntity {
     }
 
     public void updateProfile(
-            String nickname,
+            Nickname nickname,
             Short grade,
             GpaBand gpaBand,
             String introduction,
@@ -206,15 +215,15 @@ public class AppUser extends BaseTimeEntity {
             String policyVersion,
             String providerVersion
     ) {
-        String normalizedNickname = normalizeNickname(nickname);
         requireGrade(grade);
         boolean changed =
-                !Objects.equals(this.nickname, normalizedNickname)
+                !Objects.equals(this.nickname, nickname.value())
                         || !Objects.equals(this.grade, grade)
                         || !Objects.equals(this.gpaBand, gpaBand)
                         || !Objects.equals(this.introduction, introduction);
 
-        this.nickname = normalizedNickname;
+        this.nickname = nickname.value();
+        this.nicknameNormalized = nickname.normalizedValue();
         this.grade = grade;
         this.gpaBand = gpaBand;
         this.introduction = introduction;
@@ -228,17 +237,6 @@ public class AppUser extends BaseTimeEntity {
         if (changed) {
             this.profileUpdatedAt = Objects.requireNonNull(moderatedAt, "PROFILE_UPDATED_AT_REQUIRED");
         }
-    }
-
-    private static String normalizeNickname(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.trim();
-        if (normalized.length() > 30) {
-            throw new IllegalArgumentException("NICKNAME_TOO_LONG");
-        }
-        return normalized;
     }
 
     private static void requireGrade(Short grade) {

@@ -47,8 +47,7 @@ public class MyPageController {
             @Valid @RequestBody ProfileUpdateRequest request
     ) {
         Long userId = currentUserProvider.currentUserId()
-                .orElseThrow(() ->
-                        new IllegalArgumentException("AUTHENTICATION_REQUIRED"));
+                .orElseThrow(AccessTokenInvalidException::new);
 
         ProfileResponse response =
                 profileService.updateProfile(userId, request);
@@ -61,8 +60,7 @@ public class MyPageController {
     @DeleteMapping
     public ResponseEntity<Void> withdraw() {
         Long userId = currentUserProvider.currentUserId()
-                .orElseThrow(() ->
-                        new IllegalArgumentException("AUTHENTICATION_REQUIRED"));
+                .orElseThrow(AccessTokenInvalidException::new);
 
         accountService.withdraw(userId);
 

@@ -141,6 +141,92 @@ public class MyPageControllerIntegrationTest {
     }
 
     @Test
+    void 닉네임은_nfkc와_공백을_정규화해_저장한다() throws Exception {
+        AppUser user = appUserRepository.save(new AppUser("normalized-nickname@example.com"));
+
+        mockMvc.perform(
+                        put("/api/v1/users/me/profile")
+                                .with(jwt().jwt(jwt -> jwt.subject(user.getId().toString())))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {
+                                          "nickname": "  ＳｅＢｕ  ",
+                                          "grade": 3,
+                                          "gpaBand": "GTE_3_5",
+                                          "introduction": "정규화 테스트 자기소개"
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("SeBu"));
+
+        AppUser saved = appUserRepository.findById(user.getId()).orElseThrow();
+        assertThat(saved.getNicknameNormalized()).isEqualTo("sebu");
+    }
+
+    @Test
+    void 대소문자와_호환문자가_다른_중복_닉네임은_409를_반환한다() throws Exception {
+        AppUser first = appUserRepository.save(new AppUser("nickname-first@example.com"));
+        AppUser second = appUserRepository.save(new AppUser("nickname-second@example.com"));
+
+        updateNickname(first, "SeBu", "첫 번째 자기소개")
+                .andExpect(status().isOk());
+
+        updateNickname(second, "ＳＥＢＵ", "두 번째 자기소개")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("NICKNAME_ALREADY_EXISTS"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].field").value("nickname"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].reason").value("DUPLICATE"));
+    }
+
+    @Test
+    void 자신의_정규화된_닉네임은_다시_저장할_수_있다() throws Exception {
+        AppUser user = appUserRepository.save(new AppUser("nickname-self@example.com"));
+
+        updateNickname(user, "SeBu", "첫 번째 자기소개").andExpect(status().isOk());
+        updateNickname(user, "ＳＥＢＵ", "두 번째 자기소개")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("SEBU"));
+    }
+
+    @Test
+    void 예약어와_제로폭_문자가_포함된_닉네임은_400을_반환한다() throws Exception {
+        AppUser user = appUserRepository.save(new AppUser("nickname-invalid@example.com"));
+
+        updateNickname(user, "익명", "예약어 테스트")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.error.fieldErrors[0].reason").value("RESERVED_WORD"));
+
+        updateNickname(user, "세부\u200B사용자", "제로폭 테스트")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.fieldErrors[0].reason").value("INVALID_FORMAT"));
+
+        updateNickname(user, "익명\uFE0F", "변형 선택자 테스트")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.fieldErrors[0].reason").value("INVALID_FORMAT"));
+    }
+
+    @Test
+    void 잘못된_프로필_enum은_공통_검증_오류로_반환한다() throws Exception {
+        AppUser user = appUserRepository.save(new AppUser("profile-invalid-enum@example.com"));
+
+        mockMvc.perform(put("/api/v1/users/me/profile")
+                        .with(jwt().jwt(token -> token.subject(user.getId().toString())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nickname": "세부러",
+                                  "grade": 3,
+                                  "gpaBand": "INVALID",
+                                  "introduction": "잘못된 enum 테스트"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
     void 학년이_범위를_벗어나면_프로필_저장에_실패한다() throws Exception {
         AppUser user = appUserRepository.save(
                 new AppUser("invalid-grade@example.com")
@@ -258,6 +344,10 @@ public class MyPageControllerIntegrationTest {
                                 ))
                 )
                 .andExpect(status().isUnauthorized());
+
+        updateNickname(user, "탈퇴닉네임", "탈퇴 사용자 수정 시도")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error.code").value("ACCESS_TOKEN_INVALID"));
     }
     @Test
     void 자기소개가_정책에_위반되면_422를_반환하고_프로필은_변경되지_않는다() throws Exception {
@@ -482,5 +572,26 @@ public class MyPageControllerIntegrationTest {
                 department,
                 LocalDateTime.now().minusMinutes(1)
         ));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions updateNickname(
+            AppUser user,
+            String nickname,
+            String introduction
+    ) throws Exception {
+        String requestBody = """
+                {
+                  "nickname": "%s",
+                  "grade": 3,
+                  "gpaBand": "GTE_3_5",
+                  "introduction": "%s"
+                }
+                """.formatted(nickname, introduction);
+        return mockMvc.perform(
+                put("/api/v1/users/me/profile")
+                        .with(jwt().jwt(jwt -> jwt.subject(user.getId().toString())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody)
+        );
     }
 }

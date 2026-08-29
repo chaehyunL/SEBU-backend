@@ -123,16 +123,30 @@ class CommunityMySqlMigrationTest {
                         SELECT COUNT(*)
                         FROM information_schema.table_constraints
                         WHERE table_schema = DATABASE()
+                          AND table_name IN (
+                              'community_post',
+                              'community_comment',
+                              'community_post_like',
+                              'community_post_bookmark'
+                          )
+                          AND constraint_type = 'PRIMARY KEY'
+                        """
+        )).isEqualTo(4);
+
+        assertThat(count(
+                connection,
+                """
+                        SELECT COUNT(*)
+                        FROM information_schema.table_constraints
+                        WHERE table_schema = DATABASE()
+                          AND table_name = 'community_post'
+                          AND constraint_type = 'CHECK'
                           AND constraint_name IN (
-                              'pk_community_post',
-                              'pk_community_comment',
-                              'pk_community_post_like',
-                              'pk_community_post_bookmark',
                               'ck_community_post_category',
                               'ck_community_post_view_count'
                           )
                         """
-        )).isEqualTo(6);
+        )).isEqualTo(2);
 
         assertThat(count(
                 connection,

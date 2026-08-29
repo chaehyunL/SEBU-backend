@@ -73,7 +73,11 @@ public class SecurityConfiguration {
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers(POST, "/api/v1/auth/sejong/login", "/api/v1/auth/refresh", "/api/v1/auth/logout")
                     .permitAll()
-                .requestMatchers(GET, "/api/v1/laboratories").permitAll()
+                .requestMatchers(
+                    GET,
+                    "/api/v1/laboratories",
+                    "/api/v1/research-field-categories"
+                ).permitAll()
                 .requestMatchers(GET, "/api/v1/me").authenticated()
                 .requestMatchers(PATCH, "/api/v1/me/profile").authenticated()
                 .anyRequest().authenticated()

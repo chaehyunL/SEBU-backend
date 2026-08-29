@@ -24,6 +24,7 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
         DepartmentResponse department,
         List<AffiliationResponse> affiliations,
         List<String> researchFields,
+        List<ResearchFieldCategoryResponse> researchFieldCategories,
         RecruitmentStatus recruitmentStatus,
         long bookmarkCount,
         boolean bookmarked
@@ -41,6 +42,9 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
                     .map(AffiliationResponse::from)
                     .toList(),
                 result.researchFields(),
+                result.researchFieldCategories().stream()
+                    .map(ResearchFieldCategoryResponse::from)
+                    .toList(),
                 result.recruitmentStatus(),
                 result.bookmarkCount(),
                 result.bookmarked()
@@ -55,6 +59,22 @@ public record LaboratoriesResponse(List<LaboratoryResponse> laboratories) {
     }
 
     public record DepartmentResponse(Long id, String name) {
+    }
+
+    public record ResearchFieldCategoryResponse(
+        Long id,
+        String code,
+        String name
+    ) {
+        private static ResearchFieldCategoryResponse from(
+            LaboratoriesResult.ResearchFieldCategoryResult category
+        ) {
+            return new ResearchFieldCategoryResponse(
+                category.id(),
+                category.code(),
+                category.name()
+            );
+        }
     }
 
     public record AffiliationResponse(

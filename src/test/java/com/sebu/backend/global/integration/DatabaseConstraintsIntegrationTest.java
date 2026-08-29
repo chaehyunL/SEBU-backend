@@ -165,7 +165,9 @@ class DatabaseConstraintsIntegrationTest {
         Hierarchy h = hierarchy("자연대학", "수학과", "이교수", "lee@example.com");
         Laboratory lab = laboratoryRepository.saveAndFlush(new Laboratory(h.professor, h.department, "수리 연구실", null, RecruitmentStatus.RECRUITING));
         AppUser user = appUserRepository.saveAndFlush(new AppUser("student@example.com"));
-        ResearchField field = researchFieldRepository.saveAndFlush(new ResearchField("최적화"));
+        ResearchField field = researchFieldRepository.saveAndFlush(
+            new ResearchField("제약조건 테스트 최적화")
+        );
         bookmarkRepository.saveAndFlush(new Bookmark(user, lab));
         laboratoryResearchFieldRepository.saveAndFlush(new LaboratoryResearchField(lab, field));
         assertThat(bookmarkRepository.existsById(new BookmarkId(user.getId(), lab.getId()))).isTrue();

@@ -61,7 +61,20 @@ FROM professor p JOIN department d ON d.id = p.department_id
 WHERE p.name = '박지훈';
 
 INSERT INTO research_field (name)
-VALUES ('인공지능'), ('머신러닝'), ('컴퓨터비전'), ('딥러닝');
+SELECT '인공지능'
+WHERE NOT EXISTS (SELECT 1 FROM research_field WHERE name = '인공지능');
+
+INSERT INTO research_field (name)
+SELECT '머신러닝'
+WHERE NOT EXISTS (SELECT 1 FROM research_field WHERE name = '머신러닝');
+
+INSERT INTO research_field (name)
+SELECT '컴퓨터비전'
+WHERE NOT EXISTS (SELECT 1 FROM research_field WHERE name = '컴퓨터비전');
+
+INSERT INTO research_field (name)
+SELECT '딥러닝'
+WHERE NOT EXISTS (SELECT 1 FROM research_field WHERE name = '딥러닝');
 
 INSERT INTO laboratory_research_field (laboratory_id, research_field_id)
 SELECT l.id, rf.id

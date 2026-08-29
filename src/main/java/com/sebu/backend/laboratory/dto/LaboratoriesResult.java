@@ -16,6 +16,7 @@ public record LaboratoriesResult(List<LaboratoryResult> laboratories) {
         DepartmentResult department,
         List<AffiliationResult> affiliations,
         List<String> researchFields,
+        List<ResearchFieldCategoryResult> researchFieldCategories,
         RecruitmentStatus recruitmentStatus,
         long bookmarkCount,
         boolean bookmarked
@@ -29,6 +30,13 @@ public record LaboratoriesResult(List<LaboratoryResult> laboratories) {
     }
 
     public record DepartmentResult(Long id, String name) {
+    }
+
+    public record ResearchFieldCategoryResult(
+        Long id,
+        String code,
+        String name
+    ) {
     }
 
     public record AffiliationResult(

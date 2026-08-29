@@ -3,12 +3,15 @@ package com.sebu.backend.laboratory.service;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult.AffiliationResult;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult.LaboratoryResult;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult.ResearchFieldCategoryResult;
 import com.sebu.backend.global.auth.CurrentUserProvider;
 import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
 import com.sebu.backend.laboratory.repository.LaboratoryAffiliationProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryDepartmentRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
+import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldCategoryProjection;
+import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldCategoryQueryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +29,8 @@ public class LaboratoryQueryService {
     private final LaboratoryRepository laboratoryRepository;
     private final LaboratoryDepartmentRepository laboratoryDepartmentRepository;
     private final LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
+    private final LaboratoryResearchFieldCategoryQueryRepository
+        laboratoryResearchFieldCategoryQueryRepository;
     private final CurrentUserProvider currentUserProvider;
     private final LaboratorySummaryAssembler laboratorySummaryAssembler;
 
@@ -37,22 +42,30 @@ public class LaboratoryQueryService {
             return new LaboratoriesResult(List.of());
         }
 
-        Map<Long, List<String>> researchFields = findResearchFields(summaries);
-        Map<Long, List<AffiliationResult>> affiliations = findAffiliations(summaries);
+        List<Long> laboratoryIds = laboratoryIds(summaries);
+        Map<Long, List<String>> researchFields = findResearchFields(laboratoryIds);
+        Map<Long, List<ResearchFieldCategoryResult>> researchFieldCategories =
+            findResearchFieldCategories(laboratoryIds);
+        Map<Long, List<AffiliationResult>> affiliations = findAffiliations(laboratoryIds);
         List<LaboratoryResult> laboratories = summaries.stream()
             .map(summary -> laboratorySummaryAssembler.assemble(
                 summary,
                 researchFields.getOrDefault(summary.getId(), List.of()),
+                researchFieldCategories.getOrDefault(summary.getId(), List.of()),
                 affiliations.getOrDefault(summary.getId(), List.of())
             ))
             .toList();
         return new LaboratoriesResult(laboratories);
     }
 
-    private Map<Long, List<String>> findResearchFields(List<LaboratorySummaryProjection> summaries) {
-        List<Long> laboratoryIds = summaries.stream()
+    private List<Long> laboratoryIds(List<LaboratorySummaryProjection> summaries) {
+        return summaries.stream()
             .map(LaboratorySummaryProjection::getId)
+            .distinct()
             .toList();
+    }
+
+    private Map<Long, List<String>> findResearchFields(List<Long> laboratoryIds) {
         return laboratoryResearchFieldRepository.findFieldsByLaboratoryIds(laboratoryIds).stream()
             .collect(Collectors.groupingBy(
                 LaboratoryResearchFieldProjection::getLaboratoryId,
@@ -61,14 +74,44 @@ public class LaboratoryQueryService {
             ));
     }
 
-    private Map<Long, List<AffiliationResult>> findAffiliations(
-        List<LaboratorySummaryProjection> summaries
+    private Map<Long, List<ResearchFieldCategoryResult>> findResearchFieldCategories(
+        List<Long> laboratoryIds
     ) {
-        List<Long> laboratoryIds = summaries.stream()
-            .map(LaboratorySummaryProjection::getId)
-            .distinct()
-            .toList();
+        Map<Long, LinkedHashMap<Long, ResearchFieldCategoryResult>>
+            categoriesByLaboratory = new LinkedHashMap<>();
 
+        for (LaboratoryResearchFieldCategoryProjection category
+            : laboratoryResearchFieldCategoryQueryRepository
+                .findAllByLaboratoryIds(laboratoryIds)) {
+            categoriesByLaboratory
+                .computeIfAbsent(category.getLaboratoryId(), ignored -> new LinkedHashMap<>())
+                .computeIfAbsent(
+                    category.getCategoryId(),
+                    ignored -> toCategoryResult(category)
+                );
+        }
+
+        Map<Long, List<ResearchFieldCategoryResult>> results =
+            new LinkedHashMap<>();
+        categoriesByLaboratory.forEach((laboratoryId, categories) ->
+            results.put(laboratoryId, List.copyOf(categories.values()))
+        );
+        return results;
+    }
+
+    private ResearchFieldCategoryResult toCategoryResult(
+        LaboratoryResearchFieldCategoryProjection category
+    ) {
+        return new ResearchFieldCategoryResult(
+            category.getCategoryId(),
+            category.getCategoryCode(),
+            category.getCategoryName()
+        );
+    }
+
+    private Map<Long, List<AffiliationResult>> findAffiliations(
+        List<Long> laboratoryIds
+    ) {
         return laboratoryDepartmentRepository
             .findAffiliationsByLaboratoryIds(laboratoryIds)
             .stream()

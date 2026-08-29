@@ -76,7 +76,10 @@ public class SecurityConfiguration {
                 .requestMatchers(
                     GET,
                     "/api/v1/laboratories",
-                    "/api/v1/research-field-categories"
+                    "/api/v1/research-field-categories",
+                    "/api/v1/posts",
+                    "/api/v1/posts/**",
+                    "/api/v1/users/*/community-profile"
                 ).permitAll()
                 .requestMatchers(GET, "/api/v1/me").authenticated()
                 .requestMatchers(PATCH, "/api/v1/me/profile").authenticated()

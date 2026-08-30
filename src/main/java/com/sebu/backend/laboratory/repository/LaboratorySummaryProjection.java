@@ -33,7 +33,5 @@ public interface LaboratorySummaryProjection {
 
     Boolean getBookmarked();
 
-    Double getAverageRating();
-
     Long getReviewCount();
 }

@@ -34,7 +34,7 @@ CREATE TABLE laboratory_review (
                                        CHECK (paper_opportunity IN ('NONE', 'AVERAGE', 'MANY')),
 
                                    CONSTRAINT ck_laboratory_review_atmosphere
-                                       CHECK (atmosphere IN ('COMPETITIVE', 'NORMAL', 'COLLABORATIVE')),
+                                       CHECK (atmosphere IN ('COMPETITIVE', 'NORMAL', 'COOPERATIVE')),
 
                                    CONSTRAINT ck_laboratory_review_participation_term
                                        CHECK (

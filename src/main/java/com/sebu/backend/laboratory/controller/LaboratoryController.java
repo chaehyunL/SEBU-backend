@@ -23,13 +23,13 @@ public class LaboratoryController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size
     ) {
-        if ("RATING_DESC".equals(sort)) {
+        if ("REVIEW_COUNT_DESC".equals(sort)) {
             int resolvedPage = page == null ? 0 : page;
             int resolvedSize = size == null ? 20 : size;
 
             return ApiResponse.success(
                     LaboratoriesPagedResponse.from(
-                            laboratoryQueryService.getAllByRating(
+                            laboratoryQueryService.getAllByReviewCount(
                                     resolvedPage,
                                     resolvedSize
                             )

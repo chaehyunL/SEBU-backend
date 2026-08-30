@@ -26,13 +26,13 @@ class LaboratoryRatingControllerIntegrationTest {
     CurrentUserProvider currentUserProvider;
 
     @Test
-    void returnsRatingSortedLaboratoriesWithPagination() throws Exception {
+    void returnsReviewCountSortedLaboratoriesWithPagination() throws Exception {
         when(currentUserProvider.currentUserId())
                 .thenReturn(Optional.empty());
 
         mockMvc.perform(
                         get("/api/v1/laboratories")
-                                .param("sort", "RATING_DESC")
+                                .param("sort", "REVIEW_COUNT_DESC")
                                 .param("page", "0")
                                 .param("size", "20")
                 )

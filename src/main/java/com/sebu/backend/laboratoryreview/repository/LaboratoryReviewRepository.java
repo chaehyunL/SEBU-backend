@@ -5,32 +5,21 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
-import java.util.Optional;
-
 public interface LaboratoryReviewRepository
         extends JpaRepository<LaboratoryReview, Long> {
 
-    boolean existsByLaboratoryIdAndAuthorIdAndDeletedAtIsNull(
+    boolean existsByLaboratoryIdAndAuthorId(
             Long laboratoryId,
             Long authorId
     );
 
-    Optional<LaboratoryReview> findByIdAndDeletedAtIsNull(
-            Long reviewId
-    );
-
-    Optional<LaboratoryReview> findByLaboratoryIdAndAuthorIdAndDeletedAtIsNull(
-            Long laboratoryId,
-            Long authorId
-    );
-    Page<LaboratoryReview>
-    findByLaboratoryIdAndDeletedAtIsNull(
+    Page<LaboratoryReview> findByLaboratoryIdAndDeletedAtIsNull(
             Long laboratoryId,
             Pageable pageable
     );
 
-    List<LaboratoryReview> findAllByLaboratoryIdAndDeletedAtIsNull(
-            Long laboratoryId
+    boolean existsByLaboratoryIdAndAuthorIdAndDeletedAtIsNull(
+            Long laboratoryId,
+            Long authorId
     );
 }

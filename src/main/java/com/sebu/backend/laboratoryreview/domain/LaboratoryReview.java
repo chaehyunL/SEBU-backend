@@ -3,7 +3,9 @@ package com.sebu.backend.laboratoryreview.domain;
 import com.sebu.backend.global.domain.BaseTimeEntity;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.user.domain.AppUser;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -20,7 +22,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
 
 @Getter
 @Entity
@@ -40,8 +44,9 @@ public class LaboratoryReview extends BaseTimeEntity {
     @JoinColumn(name = "author_id", nullable = false)
     private AppUser author;
 
-    @Column(name = "overall_rating", nullable = false)
-    private int overallRating;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private LaboratoryReviewCategory category;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "research_intensity", nullable = false, length = 30)
@@ -52,12 +57,17 @@ public class LaboratoryReview extends BaseTimeEntity {
     private Compensation compensation;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "paper_opportunity", nullable = false, length = 30)
-    private PaperOpportunity paperOpportunity;
-
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private Atmosphere atmosphere;
+
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "laboratory_review_tag",
+            joinColumns = @JoinColumn(name = "review_id")
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tag", nullable = false, length = 50)
+    private Set<LaboratoryReviewTag> tags = new LinkedHashSet<>();
 
     @Column(nullable = false, length = 2000)
     private String content;
@@ -75,11 +85,11 @@ public class LaboratoryReview extends BaseTimeEntity {
     public LaboratoryReview(
             Laboratory laboratory,
             AppUser author,
-            int overallRating,
+            LaboratoryReviewCategory category,
             ResearchIntensity researchIntensity,
             Compensation compensation,
-            PaperOpportunity paperOpportunity,
             Atmosphere atmosphere,
+            Set<LaboratoryReviewTag> tags,
             String content,
             int participationYear,
             ParticipationTerm participationTerm
@@ -88,48 +98,42 @@ public class LaboratoryReview extends BaseTimeEntity {
                 laboratory,
                 "LABORATORY_REQUIRED"
         );
+
         this.author = Objects.requireNonNull(
                 author,
                 "AUTHOR_REQUIRED"
         );
 
-        applyReview(
-                overallRating,
-                researchIntensity,
-                compensation,
-                paperOpportunity,
-                atmosphere,
-                content,
-                participationYear,
-                participationTerm
+        this.category = Objects.requireNonNull(
+                category,
+                "LABORATORY_REVIEW_CATEGORY_REQUIRED"
         );
-    }
 
-    public void update(
-            int overallRating,
-            ResearchIntensity researchIntensity,
-            Compensation compensation,
-            PaperOpportunity paperOpportunity,
-            Atmosphere atmosphere,
-            String content,
-            int participationYear,
-            ParticipationTerm participationTerm
-    ) {
-        if (isDeleted()) {
-            throw new IllegalStateException(
-                    "DELETED_LABORATORY_REVIEW_CANNOT_BE_UPDATED"
-            );
-        }
-
-        applyReview(
-                overallRating,
+        this.researchIntensity = Objects.requireNonNull(
                 researchIntensity,
+                "RESEARCH_INTENSITY_REQUIRED"
+        );
+
+        this.compensation = Objects.requireNonNull(
                 compensation,
-                paperOpportunity,
+                "COMPENSATION_REQUIRED"
+        );
+
+        this.atmosphere = Objects.requireNonNull(
                 atmosphere,
-                content,
-                participationYear,
-                participationTerm
+                "ATMOSPHERE_REQUIRED"
+        );
+
+        this.tags = normalizeTags(tags);
+
+        validateParticipationYear(participationYear);
+
+        this.content = normalizeContent(content);
+        this.participationYear = participationYear;
+
+        this.participationTerm = Objects.requireNonNull(
+                participationTerm,
+                "PARTICIPATION_TERM_REQUIRED"
         );
     }
 
@@ -147,53 +151,25 @@ public class LaboratoryReview extends BaseTimeEntity {
         return Objects.equals(author.getId(), userId);
     }
 
-    private void applyReview(
-            int overallRating,
-            ResearchIntensity researchIntensity,
-            Compensation compensation,
-            PaperOpportunity paperOpportunity,
-            Atmosphere atmosphere,
-            String content,
-            int participationYear,
-            ParticipationTerm participationTerm
+    private Set<LaboratoryReviewTag> normalizeTags(
+            Set<LaboratoryReviewTag> tags
     ) {
-        validateOverallRating(overallRating);
-        validateParticipationYear(participationYear);
+        if (tags == null || tags.isEmpty()) {
+            return new LinkedHashSet<>();
+        }
 
-        this.overallRating = overallRating;
-        this.researchIntensity = Objects.requireNonNull(
-                researchIntensity,
-                "RESEARCH_INTENSITY_REQUIRED"
-        );
-        this.compensation = Objects.requireNonNull(
-                compensation,
-                "COMPENSATION_REQUIRED"
-        );
-        this.paperOpportunity = Objects.requireNonNull(
-                paperOpportunity,
-                "PAPER_OPPORTUNITY_REQUIRED"
-        );
-        this.atmosphere = Objects.requireNonNull(
-                atmosphere,
-                "ATMOSPHERE_REQUIRED"
-        );
-        this.content = normalizeContent(content);
-        this.participationYear = participationYear;
-        this.participationTerm = Objects.requireNonNull(
-                participationTerm,
-                "PARTICIPATION_TERM_REQUIRED"
-        );
-    }
-
-    private void validateOverallRating(int overallRating) {
-        if (overallRating < 1 || overallRating > 5) {
+        if (tags.stream().anyMatch(Objects::isNull)) {
             throw new IllegalArgumentException(
-                    "INVALID_REVIEW_RATING"
+                    "INVALID_LABORATORY_REVIEW_TAG"
             );
         }
+
+        return new LinkedHashSet<>(tags);
     }
 
-    private void validateParticipationYear(int participationYear) {
+    private void validateParticipationYear(
+            int participationYear
+    ) {
         int currentYear = Year.now().getValue();
 
         if (participationYear < 2000 || participationYear > currentYear) {
@@ -203,7 +179,9 @@ public class LaboratoryReview extends BaseTimeEntity {
         }
     }
 
-    private String normalizeContent(String content) {
+    private String normalizeContent(
+            String content
+    ) {
         if (content == null) {
             throw new IllegalArgumentException(
                     "REVIEW_CONTENT_REQUIRED"

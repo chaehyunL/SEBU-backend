@@ -73,7 +73,6 @@ public class LaboratorySummaryAssembler {
                 projection.getRecruitmentStatus(),
                 projection.getBookmarkCount(),
                 Boolean.TRUE.equals(projection.getBookmarked()),
-                projection.getAverageRating(),
                 projection.getReviewCount()
         );
     }

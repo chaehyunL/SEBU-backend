@@ -104,6 +104,70 @@ public class LaboratoryReview extends BaseTimeEntity {
                 "AUTHOR_REQUIRED"
         );
 
+        applyReview(
+                category,
+                researchIntensity,
+                compensation,
+                atmosphere,
+                tags,
+                content,
+                participationYear,
+                participationTerm
+        );
+    }
+
+    public void update(
+            LaboratoryReviewCategory category,
+            ResearchIntensity researchIntensity,
+            Compensation compensation,
+            Atmosphere atmosphere,
+            Set<LaboratoryReviewTag> tags,
+            String content,
+            int participationYear,
+            ParticipationTerm participationTerm
+    ) {
+        if (isDeleted()) {
+            throw new IllegalStateException(
+                    "DELETED_LABORATORY_REVIEW_CANNOT_BE_UPDATED"
+            );
+        }
+
+        applyReview(
+                category,
+                researchIntensity,
+                compensation,
+                atmosphere,
+                tags,
+                content,
+                participationYear,
+                participationTerm
+        );
+    }
+
+    public void softDelete() {
+        if (deletedAt == null) {
+            deletedAt = LocalDateTime.now();
+        }
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
+    public boolean isWrittenBy(Long userId) {
+        return Objects.equals(author.getId(), userId);
+    }
+
+    private void applyReview(
+            LaboratoryReviewCategory category,
+            ResearchIntensity researchIntensity,
+            Compensation compensation,
+            Atmosphere atmosphere,
+            Set<LaboratoryReviewTag> tags,
+            String content,
+            int participationYear,
+            ParticipationTerm participationTerm
+    ) {
         this.category = Objects.requireNonNull(
                 category,
                 "LABORATORY_REVIEW_CATEGORY_REQUIRED"
@@ -135,20 +199,6 @@ public class LaboratoryReview extends BaseTimeEntity {
                 participationTerm,
                 "PARTICIPATION_TERM_REQUIRED"
         );
-    }
-
-    public void softDelete() {
-        if (deletedAt == null) {
-            deletedAt = LocalDateTime.now();
-        }
-    }
-
-    public boolean isDeleted() {
-        return deletedAt != null;
-    }
-
-    public boolean isWrittenBy(Long userId) {
-        return Objects.equals(author.getId(), userId);
     }
 
     private Set<LaboratoryReviewTag> normalizeTags(

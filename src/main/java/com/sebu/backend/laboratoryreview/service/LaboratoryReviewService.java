@@ -6,10 +6,17 @@ import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratoryreview.domain.LaboratoryReview;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewCreateRequest;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewCreateResponse;
+import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewDeleteResponse;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewListResponse;
+import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewMeResponse;
+import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewSummaryResponse;
+import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateRequest;
+import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateResponse;
 import com.sebu.backend.laboratoryreview.exception.InvalidReviewPageException;
 import com.sebu.backend.laboratoryreview.exception.InvalidReviewSizeException;
 import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewAlreadyExistsException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewForbiddenException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewNotFoundException;
 import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewRepository;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.exception.UserNotFoundException;
@@ -21,7 +28,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +48,7 @@ public class LaboratoryReviewService {
             Long userId,
             LaboratoryReviewCreateRequest request
     ) {
-        Laboratory laboratory = laboratoryRepository
-                .findById(laboratoryId)
-                .filter(lab -> !lab.isDeleted())
-                .orElseThrow(LaboratoryNotFoundException::new);
+        Laboratory laboratory = findActiveLaboratory(laboratoryId);
 
         AppUser author = appUserRepository
                 .findById(userId)
@@ -49,7 +57,7 @@ public class LaboratoryReviewService {
 
         boolean alreadyExists =
                 laboratoryReviewRepository
-                        .existsByLaboratoryIdAndAuthorId(
+                        .existsByLaboratoryIdAndAuthorIdAndDeletedAtIsNull(
                                 laboratoryId,
                                 userId
                         );
@@ -88,10 +96,8 @@ public class LaboratoryReviewService {
     ) {
         validatePagination(page, size);
 
-        Laboratory laboratory = laboratoryRepository
-                .findById(laboratoryId)
-                .filter(lab -> !lab.isDeleted())
-                .orElseThrow(LaboratoryNotFoundException::new);
+        Laboratory laboratory =
+                findActiveLaboratory(laboratoryId);
 
         PageRequest pageable = PageRequest.of(
                 page,
@@ -139,6 +145,112 @@ public class LaboratoryReviewService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public LaboratoryReviewMeResponse getMyReview(
+            Long laboratoryId,
+            Long userId
+    ) {
+        findActiveLaboratory(laboratoryId);
+
+        LaboratoryReview review =
+                laboratoryReviewRepository
+                        .findByLaboratoryIdAndAuthorIdAndDeletedAtIsNull(
+                                laboratoryId,
+                                userId
+                        )
+                        .orElseThrow(
+                                LaboratoryReviewNotFoundException::new
+                        );
+
+        return LaboratoryReviewMeResponse.from(review);
+    }
+
+    @Transactional
+    public LaboratoryReviewUpdateResponse updateReview(
+            Long laboratoryId,
+            Long reviewId,
+            Long userId,
+            LaboratoryReviewUpdateRequest request
+    ) {
+        findActiveLaboratory(laboratoryId);
+
+        LaboratoryReview review =
+                findActiveReview(
+                        laboratoryId,
+                        reviewId
+                );
+
+        if (!review.isWrittenBy(userId)) {
+            throw new LaboratoryReviewForbiddenException();
+        }
+
+        review.update(
+                request.category(),
+                request.researchIntensity(),
+                request.compensation(),
+                request.atmosphere(),
+                request.tags(),
+                request.content(),
+                request.participationYear(),
+                request.participationTerm()
+        );
+
+        return new LaboratoryReviewUpdateResponse(
+                review.getId(),
+                review.getUpdatedAt()
+        );
+    }
+
+    @Transactional
+    public LaboratoryReviewDeleteResponse deleteReview(
+            Long laboratoryId,
+            Long reviewId,
+            Long userId
+    ) {
+        findActiveLaboratory(laboratoryId);
+
+        LaboratoryReview review =
+                findActiveReview(
+                        laboratoryId,
+                        reviewId
+                );
+
+        if (!review.isWrittenBy(userId)) {
+            throw new LaboratoryReviewForbiddenException();
+        }
+
+        review.softDelete();
+
+        return new LaboratoryReviewDeleteResponse(
+                review.getId()
+        );
+    }
+
+    private Laboratory findActiveLaboratory(
+            Long laboratoryId
+    ) {
+        return laboratoryRepository
+                .findById(laboratoryId)
+                .filter(laboratory -> !laboratory.isDeleted())
+                .orElseThrow(
+                        LaboratoryNotFoundException::new
+                );
+    }
+
+    private LaboratoryReview findActiveReview(
+            Long laboratoryId,
+            Long reviewId
+    ) {
+        return laboratoryReviewRepository
+                .findByIdAndLaboratoryIdAndDeletedAtIsNull(
+                        reviewId,
+                        laboratoryId
+                )
+                .orElseThrow(
+                        LaboratoryReviewNotFoundException::new
+                );
+    }
+
     private void validatePagination(
             int page,
             int size
@@ -150,5 +262,100 @@ public class LaboratoryReviewService {
         if (size < 1 || size > 50) {
             throw new InvalidReviewSizeException();
         }
+    }
+
+    @Transactional(readOnly = true)
+    public LaboratoryReviewSummaryResponse getReviewSummary(
+            Long laboratoryId
+    ) {
+        Laboratory laboratory =
+                findActiveLaboratory(laboratoryId);
+
+        List<LaboratoryReview> reviews =
+                laboratoryReviewRepository
+                        .findAllByLaboratoryIdAndDeletedAtIsNull(
+                                laboratoryId
+                        );
+
+        long reviewCount = reviews.size();
+
+        return new LaboratoryReviewSummaryResponse(
+                new LaboratoryReviewSummaryResponse.LaboratoryInfo(
+                        laboratory.getId(),
+                        laboratory.getName(),
+
+                        new LaboratoryReviewSummaryResponse.ProfessorInfo(
+                                laboratory.getProfessor().getId(),
+                                laboratory.getProfessor().getName()
+                        ),
+
+                        new LaboratoryReviewSummaryResponse.CollegeInfo(
+                                laboratory.getDepartment()
+                                        .getCollege()
+                                        .getId(),
+                                laboratory.getDepartment()
+                                        .getCollege()
+                                        .getName()
+                        ),
+
+                        new LaboratoryReviewSummaryResponse.DepartmentInfo(
+                                laboratory.getDepartment().getId(),
+                                laboratory.getDepartment().getName()
+                        )
+                ),
+
+                reviewCount,
+
+                new LaboratoryReviewSummaryResponse.EvaluationDistributions(
+                        createEnumDistribution(
+                                reviews,
+                                LaboratoryReview::getResearchIntensity
+                        ),
+                        createEnumDistribution(
+                                reviews,
+                                LaboratoryReview::getCompensation
+                        ),
+                        createEnumDistribution(
+                                reviews,
+                                LaboratoryReview::getAtmosphere
+                        )
+                )
+        );
+    }
+
+    private <E extends Enum<E>>
+    List<LaboratoryReviewSummaryResponse.EvaluationDistribution>
+    createEnumDistribution(
+            List<LaboratoryReview> reviews,
+            Function<LaboratoryReview, E> extractor
+    ) {
+        if (reviews.isEmpty()) {
+            return List.of();
+        }
+
+        Map<E, Long> counts =
+                reviews.stream()
+                        .map(extractor)
+                        .collect(
+                                Collectors.groupingBy(
+                                        Function.identity(),
+                                        LinkedHashMap::new,
+                                        Collectors.counting()
+                                )
+                        );
+
+        long total = reviews.size();
+
+        return counts.entrySet()
+                .stream()
+                .map(entry ->
+                        new LaboratoryReviewSummaryResponse
+                                .EvaluationDistribution(
+                                entry.getKey().name(),
+                                entry.getValue(),
+                                entry.getValue() * 100.0 / total
+                        )
+                )
+                .toList();
     }
 }

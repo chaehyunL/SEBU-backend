@@ -1,13 +1,10 @@
 package com.sebu.backend.laboratoryreview.dto;
 
 import java.util.List;
-import java.util.Map;
 
 public record LaboratoryReviewSummaryResponse(
         LaboratoryInfo laboratory,
-        Double averageRating,
         long reviewCount,
-        List<RatingDistribution> ratingDistribution,
         EvaluationDistributions evaluationDistributions
 ) {
 
@@ -38,13 +35,6 @@ public record LaboratoryReviewSummaryResponse(
     ) {
     }
 
-    public record RatingDistribution(
-            int rating,
-            long count,
-            double percentage
-    ) {
-    }
-
     public record EvaluationDistribution(
             String value,
             long count,
@@ -55,7 +45,6 @@ public record LaboratoryReviewSummaryResponse(
     public record EvaluationDistributions(
             List<EvaluationDistribution> researchIntensity,
             List<EvaluationDistribution> compensation,
-            List<EvaluationDistribution> paperOpportunity,
             List<EvaluationDistribution> atmosphere
     ) {
     }

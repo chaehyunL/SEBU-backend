@@ -387,4 +387,55 @@ class LaboratoryReviewIntegrationTest {
             Long userId
     ) {
     }
+
+    @Test
+    void allowsReviewCreationAgainAfterSoftDelete() {
+        // given
+        TestFixture fixture = createFixture();
+        LaboratoryReviewCreateRequest request = createRequest();
+
+        var firstResponse = laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                request
+        );
+
+        LaboratoryReview firstReview = laboratoryReviewRepository
+                .findById(firstResponse.reviewId())
+                .orElseThrow();
+
+        firstReview.softDelete();
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        var secondResponse = laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                request
+        );
+
+        entityManager.flush();
+
+        // then
+        assertThat(secondResponse.reviewId())
+                .isNotNull()
+                .isNotEqualTo(firstResponse.reviewId());
+
+        LaboratoryReview recreatedReview =
+                laboratoryReviewRepository
+                        .findById(secondResponse.reviewId())
+                        .orElseThrow();
+
+        assertThat(recreatedReview.isDeleted()).isFalse();
+
+        assertThat(
+                laboratoryReviewRepository
+                        .existsByLaboratoryIdAndAuthorIdAndDeletedAtIsNull(
+                                fixture.laboratoryId(),
+                                fixture.userId()
+                        )
+        ).isTrue();
+    }
 }

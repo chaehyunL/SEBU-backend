@@ -60,6 +60,7 @@ public class LaboratoryReview extends BaseTimeEntity {
     @Column(nullable = false, length = 30)
     private Atmosphere atmosphere;
 
+    @Getter(AccessLevel.NONE)
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "laboratory_review_tag",
@@ -158,6 +159,26 @@ public class LaboratoryReview extends BaseTimeEntity {
         return Objects.equals(author.getId(), userId);
     }
 
+    /*
+     * 내부의 변경 가능한 Set을 그대로 노출하지 않는다.
+     */
+    public Set<LaboratoryReviewTag> getTags() {
+        return Set.copyOf(tags);
+    }
+
+    /*
+     * 태그 변경은 검증을 거쳐서만 수행한다.
+     */
+    public void replaceTags(Set<LaboratoryReviewTag> tags) {
+        if (isDeleted()) {
+            throw new IllegalStateException(
+                    "DELETED_LABORATORY_REVIEW_CANNOT_BE_UPDATED"
+            );
+        }
+
+        this.tags = normalizeTags(tags);
+    }
+
     private void applyReview(
             LaboratoryReviewCategory category,
             ResearchIntensity researchIntensity,
@@ -188,7 +209,7 @@ public class LaboratoryReview extends BaseTimeEntity {
                 "ATMOSPHERE_REQUIRED"
         );
 
-        this.tags = normalizeTags(tags);
+        replaceTags(tags);
 
         validateParticipationYear(participationYear);
 

@@ -87,7 +87,7 @@ CREATE TABLE laboratory_review (
                                    CONSTRAINT fk_laboratory_review_laboratory
                                        FOREIGN KEY (laboratory_id)
                                            REFERENCES laboratory (id)
-                                           ON DELETE RESTRICT,
+                                           ON DELETE CASCADE,
 
                                    CONSTRAINT fk_laboratory_review_author
                                        FOREIGN KEY (author_id)

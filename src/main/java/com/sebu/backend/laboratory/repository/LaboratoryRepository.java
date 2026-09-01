@@ -48,7 +48,7 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
         order by laboratory.id
         """)
     List<Laboratory> findActiveByProfessorIdForUpdate(
-        @Param("professorId") Long professorId
+            @Param("professorId") Long professorId
     );
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -62,9 +62,10 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     );
 
     /*
-     * 기존 전체 연구실 조회
+     * 전체 연구실 조회
      *
-     * 후기 수(reviewCount)를 함께 반환한다.
+     * 후기 수는 LaboratoryReviewQueryRepository에서
+     * laboratory ID 목록 기준으로 별도 batch 집계한다.
      */
     @Query("""
         select l.id as id,
@@ -84,9 +85,7 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
 
                case when sum(
                     case when b.user.id = :userId then 1 else 0 end
-               ) > 0 then true else false end as bookmarked,
-
-               count(distinct r.id) as reviewCount
+               ) > 0 then true else false end as bookmarked
 
         from Laboratory l
 
@@ -97,10 +96,6 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
         left join Bookmark b
             on b.laboratory = l
             and b.user.deletedAt is null
-
-        left join LaboratoryReview r
-            on r.laboratory = l
-            and r.deletedAt is null
 
         where l.deletedAt is null
 
@@ -127,8 +122,11 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
     /*
      * REVIEW_COUNT_DESC 조회
      *
-     * 1. 후기 수 DESC
-     * 2. ID DESC
+     * TODO:
+     * 후기 수 기준 정렬 자체가 필요하므로
+     * 다음 단계에서 별도 read-side 조회로 분리한다.
+     *
+     * 현재는 기존 동작을 유지한다.
      */
     @Query(
             value = """
@@ -200,6 +198,9 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
 
     /*
      * 특정 ID 목록의 연구실 요약 조회
+     *
+     * 후기 수는 LaboratoryReviewQueryRepository에서
+     * laboratory ID 목록 기준으로 별도 batch 집계한다.
      */
     @Query("""
         select l.id as id,
@@ -219,9 +220,7 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
 
                case when sum(
                     case when b.user.id = :userId then 1 else 0 end
-               ) > 0 then true else false end as bookmarked,
-
-               count(distinct r.id) as reviewCount
+               ) > 0 then true else false end as bookmarked
 
         from Laboratory l
 
@@ -232,10 +231,6 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
         left join Bookmark b
             on b.laboratory = l
             and b.user.deletedAt is null
-
-        left join LaboratoryReview r
-            on r.laboratory = l
-            and r.deletedAt is null
 
         where l.deletedAt is null
           and l.id in :laboratoryIds

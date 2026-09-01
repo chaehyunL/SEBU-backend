@@ -1,31 +1,33 @@
 package com.sebu.backend.laboratory.controller;
 
-import com.sebu.backend.global.auth.CurrentUserProvider;
-import com.sebu.backend.laboratory.service.LaboratoryQueryService;
 import com.sebu.backend.bookmark.domain.Bookmark;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
 import com.sebu.backend.college.domain.College;
 import com.sebu.backend.college.repository.CollegeRepository;
 import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.department.repository.DepartmentRepository;
+import com.sebu.backend.global.auth.CurrentUserProvider;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.domain.LaboratoryDepartment;
 import com.sebu.backend.laboratory.domain.LaboratoryNameSource;
-import com.sebu.backend.laboratory.domain.RecruitmentStatus;
 import com.sebu.backend.laboratory.domain.LaboratoryResearchField;
-import com.sebu.backend.laboratory.repository.LaboratoryRepository;
+import com.sebu.backend.laboratory.domain.RecruitmentStatus;
 import com.sebu.backend.laboratory.repository.LaboratoryDepartmentRepository;
+import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
+import com.sebu.backend.laboratory.service.LaboratoryQueryService;
 import com.sebu.backend.professor.domain.Professor;
 import com.sebu.backend.professor.repository.ProfessorRepository;
 import com.sebu.backend.researchfield.domain.ResearchField;
 import com.sebu.backend.researchfield.repository.ResearchFieldRepository;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.repository.AppUserRepository;
-import jakarta.persistence.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,7 +40,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -154,10 +157,19 @@ class LaboratoryApiIntegrationTest {
 
     @Test
     void queryCountStaysFixedWithoutNPlusOne() {
-        when(currentUserProvider.currentUserId()).thenReturn(Optional.of(firstUserId));
-        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        when(currentUserProvider.currentUserId())
+                .thenReturn(Optional.of(firstUserId));
+
+        Statistics statistics = entityManagerFactory
+                .unwrap(SessionFactory.class)
+                .getStatistics();
+
         statistics.clear();
-        assertThat(queryService.getAll().laboratories()).hasSize(2);
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(4);
+
+        assertThat(queryService.getAll().laboratories())
+                .hasSize(2);
+
+        assertThat(statistics.getPrepareStatementCount())
+                .isEqualTo(5);
     }
 }

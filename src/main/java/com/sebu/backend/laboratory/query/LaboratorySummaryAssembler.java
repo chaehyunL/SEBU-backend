@@ -35,15 +35,16 @@ public class LaboratorySummaryAssembler {
     }
 
     public LaboratoriesResult.LaboratoryResult assemble(
-        LaboratorySummaryProjection projection,
-        List<String> researchFields,
-        List<LaboratoriesResult.ResearchFieldCategoryResult> researchFieldCategories,
-        List<LaboratoriesResult.AffiliationResult> affiliations
+            LaboratorySummaryProjection projection,
+            List<String> researchFields,
+            List<LaboratoriesResult.ResearchFieldCategoryResult> researchFieldCategories,
+            List<LaboratoriesResult.AffiliationResult> affiliations,
+            long reviewCount
     ) {
         List<LaboratoriesResult.AffiliationResult> resolvedAffiliations =
-            affiliations.isEmpty()
-                ? List.of(primaryAffiliation(projection))
-                : List.copyOf(affiliations);
+                affiliations.isEmpty()
+                        ? List.of(primaryAffiliation(projection))
+                        : List.copyOf(affiliations);
 
         return new LaboratoriesResult.LaboratoryResult(
                 projection.getId(),
@@ -73,7 +74,7 @@ public class LaboratorySummaryAssembler {
                 projection.getRecruitmentStatus(),
                 projection.getBookmarkCount(),
                 Boolean.TRUE.equals(projection.getBookmarked()),
-                projection.getReviewCount()
+                reviewCount
         );
     }
 
@@ -89,6 +90,23 @@ public class LaboratorySummaryAssembler {
                 projection.getDepartmentId(),
                 projection.getDepartmentName()
             )
+        );
+    }
+
+    public LaboratoriesResult.LaboratoryResult assemble(
+            LaboratorySummaryProjection projection,
+            List<String> researchFields,
+            List<LaboratoriesResult.ResearchFieldCategoryResult> researchFieldCategories,
+            List<LaboratoriesResult.AffiliationResult> affiliations
+    ) {
+        return assemble(
+                projection,
+                researchFields,
+                researchFieldCategories,
+                affiliations,
+                projection.getReviewCount() == null
+                        ? 0L
+                        : projection.getReviewCount()
         );
     }
 }

@@ -15,6 +15,9 @@ import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldCategoryQue
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
+import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewCountPageProjection;
+import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewCountProjection;
+import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewQueryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +40,7 @@ public class LaboratoryQueryService {
             laboratoryResearchFieldCategoryQueryRepository;
     private final CurrentUserProvider currentUserProvider;
     private final LaboratorySummaryAssembler laboratorySummaryAssembler;
+    private final LaboratoryReviewQueryRepository laboratoryReviewQueryRepository;
 
     @Transactional(readOnly = true)
     public LaboratoriesResult getAll() {
@@ -64,26 +68,58 @@ public class LaboratoryQueryService {
         Long userId = currentUserProvider.currentUserId()
                 .orElse(null);
 
-        Page<LaboratorySummaryProjection> summaryPage =
-                laboratoryRepository.findAllSummariesByReviewCount(
-                        userId,
+        Page<LaboratoryReviewCountPageProjection> reviewCountPage =
+                laboratoryReviewQueryRepository.findLaboratoryIdsByReviewCount(
                         PageRequest.of(page, size)
                 );
 
-        List<LaboratorySummaryProjection> summaries =
-                summaryPage.getContent();
+        List<Long> laboratoryIds =
+                reviewCountPage.getContent()
+                        .stream()
+                        .map(
+                                LaboratoryReviewCountPageProjection::getLaboratoryId
+                        )
+                        .toList();
+
+        if (laboratoryIds.isEmpty()) {
+            return new LaboratoriesPagedResult(
+                    List.of(),
+                    reviewCountPage.getNumber(),
+                    reviewCountPage.getSize(),
+                    reviewCountPage.getTotalElements(),
+                    reviewCountPage.hasNext()
+            );
+        }
+
+        Map<Long, LaboratorySummaryProjection> summaryById =
+                laboratoryRepository
+                        .findSummariesByIds(
+                                userId,
+                                laboratoryIds
+                        )
+                        .stream()
+                        .collect(
+                                Collectors.toMap(
+                                        LaboratorySummaryProjection::getId,
+                                        summary -> summary
+                                )
+                        );
+
+        List<LaboratorySummaryProjection> orderedSummaries =
+                laboratoryIds.stream()
+                        .map(summaryById::get)
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
 
         List<LaboratoryResult> laboratories =
-                summaries.isEmpty()
-                        ? List.of()
-                        : assembleLaboratories(summaries);
+                assembleLaboratories(orderedSummaries);
 
         return new LaboratoriesPagedResult(
                 laboratories,
-                summaryPage.getNumber(),
-                summaryPage.getSize(),
-                summaryPage.getTotalElements(),
-                summaryPage.hasNext()
+                reviewCountPage.getNumber(),
+                reviewCountPage.getSize(),
+                reviewCountPage.getTotalElements(),
+                reviewCountPage.hasNext()
         );
     }
 
@@ -92,6 +128,9 @@ public class LaboratoryQueryService {
     ) {
         List<Long> laboratoryIds =
                 laboratoryIds(summaries);
+
+        Map<Long, Long> reviewCounts =
+                findReviewCounts(laboratoryIds);
 
         Map<Long, List<String>> researchFields =
                 findResearchFields(laboratoryIds);
@@ -118,10 +157,32 @@ public class LaboratoryQueryService {
                                 affiliations.getOrDefault(
                                         summary.getId(),
                                         List.of()
+                                ),
+                                reviewCounts.getOrDefault(
+                                        summary.getId(),
+                                        0L
                                 )
                         )
                 )
                 .toList();
+    }
+
+    private Map<Long, Long> findReviewCounts(
+            List<Long> laboratoryIds
+    ) {
+        if (laboratoryIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return laboratoryReviewQueryRepository
+                .countActiveReviewsByLaboratoryIds(laboratoryIds)
+                .stream()
+                .collect(
+                        Collectors.toMap(
+                                LaboratoryReviewCountProjection::getLaboratoryId,
+                                LaboratoryReviewCountProjection::getReviewCount
+                        )
+                );
     }
 
     private List<Long> laboratoryIds(
@@ -230,4 +291,5 @@ public class LaboratoryQueryService {
                 )
         );
     }
+
 }

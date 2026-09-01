@@ -4,7 +4,15 @@ import com.sebu.backend.auth.exception.AccessTokenInvalidException;
 import com.sebu.backend.bookmark.exception.InvalidCursorException;
 import com.sebu.backend.bookmark.exception.InvalidSizeException;
 import com.sebu.backend.global.response.ApiResponse;
+import com.sebu.backend.laboratory.exception.InvalidLaboratoryPageException;
+import com.sebu.backend.laboratory.exception.InvalidLaboratorySizeException;
 import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
+import com.sebu.backend.laboratoryreview.exception.InvalidLaboratoryReviewInputException;
+import com.sebu.backend.laboratoryreview.exception.InvalidReviewPageException;
+import com.sebu.backend.laboratoryreview.exception.InvalidReviewSizeException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewAlreadyExistsException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewForbiddenException;
+import com.sebu.backend.laboratoryreview.exception.LaboratoryReviewNotFoundException;
 import com.sebu.backend.mypage.moderation.IntroductionModerationException;
 import com.sebu.backend.mypage.moderation.IntroductionModerationUnavailableException;
 import com.sebu.backend.user.exception.InvalidNicknameException;
@@ -146,6 +154,85 @@ public class ExceptionControllerAdvice {
                 ));
     }
 
+    @ExceptionHandler(LaboratoryReviewNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLaboratoryReviewNotFound(
+            LaboratoryReviewNotFoundException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.failure(
+                        "LABORATORY_REVIEW_NOT_FOUND",
+                        "랩실 후기를 찾을 수 없습니다."
+                ));
+    }
+
+    @ExceptionHandler(LaboratoryReviewAlreadyExistsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLaboratoryReviewAlreadyExists(
+            LaboratoryReviewAlreadyExistsException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.failure(
+                        "LABORATORY_REVIEW_ALREADY_EXISTS",
+                        "이미 해당 연구실에 작성한 후기가 있습니다."
+                ));
+    }
+
+    @ExceptionHandler(LaboratoryReviewForbiddenException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLaboratoryReviewForbidden(
+            LaboratoryReviewForbiddenException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.failure(
+                        "LABORATORY_REVIEW_FORBIDDEN",
+                        "해당 후기를 수정하거나 삭제할 권한이 없습니다."
+                ));
+    }
+
+    @ExceptionHandler(InvalidReviewPageException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidReviewPage(
+            InvalidReviewPageException exception
+    ) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.failure(
+                        "INVALID_REVIEW_PAGE",
+                        "페이지 번호는 0 이상이어야 합니다."
+                ));
+    }
+
+    @ExceptionHandler(InvalidReviewSizeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidReviewSize(
+            InvalidReviewSizeException exception
+    ) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.failure(
+                        "INVALID_REVIEW_SIZE",
+                        "조회 개수는 1~50이어야 합니다."
+                ));
+    }
+
+    @ExceptionHandler(InvalidLaboratoryReviewInputException.class)
+    public ResponseEntity<ApiResponse<Void>>
+    handleInvalidLaboratoryReviewInput(
+            InvalidLaboratoryReviewInputException exception
+    ) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiResponse.failure(
+                        "VALIDATION_ERROR",
+                        "입력값을 확인해 주세요.",
+                        List.of(new ApiResponse.FieldError(
+                                exception.field(),
+                                exception.reason(),
+                                exception.userMessage()
+                        )),
+                        null
+                ));
+    }
+
     @ExceptionHandler(InvalidCursorException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidCursor(
             InvalidCursorException exception
@@ -231,6 +318,30 @@ public class ExceptionControllerAdvice {
                 .body(ApiResponse.failure(
                         "INTERNAL_SERVER_ERROR",
                         "서버 오류가 발생했습니다."
+                ));
+    }
+
+    @ExceptionHandler(InvalidLaboratoryPageException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidLaboratoryPage(
+            InvalidLaboratoryPageException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.failure(
+                        "INVALID_LABORATORY_PAGE",
+                        "페이지는 0 이상이어야 합니다."
+                ));
+    }
+
+    @ExceptionHandler(InvalidLaboratorySizeException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidLaboratorySize(
+            InvalidLaboratorySizeException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.failure(
+                        "INVALID_LABORATORY_SIZE",
+                        "조회 개수는 1 이상 50 이하여야 합니다."
                 ));
     }
 }

@@ -28,7 +28,7 @@ public record LaboratoryReviewUpdateRequest(
         Atmosphere atmosphere,
 
         @NotNull
-        Set<LaboratoryReviewTag> tags,
+        Set<@NotNull LaboratoryReviewTag> tags,
 
         @NotBlank
         @Size(min = 20, max = 2000)

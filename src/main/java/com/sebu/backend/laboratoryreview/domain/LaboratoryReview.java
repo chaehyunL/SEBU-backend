@@ -2,6 +2,7 @@ package com.sebu.backend.laboratoryreview.domain;
 
 import com.sebu.backend.global.domain.BaseTimeEntity;
 import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratoryreview.exception.InvalidLaboratoryReviewInputException;
 import com.sebu.backend.user.domain.AppUser;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -189,37 +190,45 @@ public class LaboratoryReview extends BaseTimeEntity {
             int participationYear,
             ParticipationTerm participationTerm
     ) {
-        this.category = Objects.requireNonNull(
+        LaboratoryReviewCategory validatedCategory = Objects.requireNonNull(
                 category,
                 "LABORATORY_REVIEW_CATEGORY_REQUIRED"
         );
 
-        this.researchIntensity = Objects.requireNonNull(
+        ResearchIntensity validatedResearchIntensity = Objects.requireNonNull(
                 researchIntensity,
                 "RESEARCH_INTENSITY_REQUIRED"
         );
 
-        this.compensation = Objects.requireNonNull(
+        Compensation validatedCompensation = Objects.requireNonNull(
                 compensation,
                 "COMPENSATION_REQUIRED"
         );
 
-        this.atmosphere = Objects.requireNonNull(
+        Atmosphere validatedAtmosphere = Objects.requireNonNull(
                 atmosphere,
                 "ATMOSPHERE_REQUIRED"
         );
 
-        replaceTags(tags);
+        Set<LaboratoryReviewTag> normalizedTags = normalizeTags(tags);
 
         validateParticipationYear(participationYear);
 
-        this.content = normalizeContent(content);
-        this.participationYear = participationYear;
+        String normalizedContent = normalizeContent(content);
 
-        this.participationTerm = Objects.requireNonNull(
+        ParticipationTerm validatedParticipationTerm = Objects.requireNonNull(
                 participationTerm,
                 "PARTICIPATION_TERM_REQUIRED"
         );
+
+        this.category = validatedCategory;
+        this.researchIntensity = validatedResearchIntensity;
+        this.compensation = validatedCompensation;
+        this.atmosphere = validatedAtmosphere;
+        this.tags = normalizedTags;
+        this.content = normalizedContent;
+        this.participationYear = participationYear;
+        this.participationTerm = validatedParticipationTerm;
     }
 
     private Set<LaboratoryReviewTag> normalizeTags(
@@ -230,9 +239,7 @@ public class LaboratoryReview extends BaseTimeEntity {
         }
 
         if (tags.stream().anyMatch(Objects::isNull)) {
-            throw new IllegalArgumentException(
-                    "INVALID_LABORATORY_REVIEW_TAG"
-            );
+            throw InvalidLaboratoryReviewInputException.invalidTag();
         }
 
         return new LinkedHashSet<>(tags);
@@ -244,9 +251,8 @@ public class LaboratoryReview extends BaseTimeEntity {
         int currentYear = Year.now().getValue();
 
         if (participationYear < 2000 || participationYear > currentYear) {
-            throw new IllegalArgumentException(
-                    "INVALID_PARTICIPATION_YEAR"
-            );
+            throw InvalidLaboratoryReviewInputException
+                    .invalidParticipationYear(currentYear);
         }
     }
 
@@ -254,17 +260,13 @@ public class LaboratoryReview extends BaseTimeEntity {
             String content
     ) {
         if (content == null) {
-            throw new IllegalArgumentException(
-                    "REVIEW_CONTENT_REQUIRED"
-            );
+            throw InvalidLaboratoryReviewInputException.invalidContent();
         }
 
         String normalized = content.trim();
 
         if (normalized.length() < 20 || normalized.length() > 2000) {
-            throw new IllegalArgumentException(
-                    "INVALID_REVIEW_CONTENT"
-            );
+            throw InvalidLaboratoryReviewInputException.invalidContent();
         }
 
         return normalized;

@@ -22,14 +22,17 @@ import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -37,6 +40,9 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class LaboratoryReviewService {
+
+    private static final String ACTIVE_REVIEW_UNIQUE_CONSTRAINT =
+            "uk_laboratory_review_active_author_laboratory";
 
     private final LaboratoryReviewRepository laboratoryReviewRepository;
     private final LaboratoryRepository laboratoryRepository;
@@ -79,8 +85,16 @@ public class LaboratoryReviewService {
                 request.participationTerm()
         );
 
-        LaboratoryReview saved =
-                laboratoryReviewRepository.save(review);
+        LaboratoryReview saved;
+
+        try {
+            saved = laboratoryReviewRepository.saveAndFlush(review);
+        } catch (DataIntegrityViolationException exception) {
+            if (isActiveReviewUniqueConstraintViolation(exception)) {
+                throw new LaboratoryReviewAlreadyExistsException();
+            }
+            throw exception;
+        }
 
         return new LaboratoryReviewCreateResponse(
                 saved.getId()
@@ -228,6 +242,8 @@ public class LaboratoryReviewService {
                 request.participationTerm()
         );
 
+        laboratoryReviewRepository.flush();
+
         return new LaboratoryReviewUpdateResponse(
                 review.getId(),
                 review.getUpdatedAt()
@@ -295,6 +311,34 @@ public class LaboratoryReviewService {
         if (size < 1 || size > 50) {
             throw new InvalidReviewSizeException();
         }
+    }
+
+    private boolean isActiveReviewUniqueConstraintViolation(
+            Throwable exception
+    ) {
+        Throwable cause = exception;
+
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException constraintViolation
+                    && ACTIVE_REVIEW_UNIQUE_CONSTRAINT.equalsIgnoreCase(
+                    constraintViolation.getConstraintName()
+            )) {
+                return true;
+            }
+
+            String message = cause.getMessage();
+
+            if (message != null
+                    && message.toLowerCase(Locale.ROOT).contains(
+                    ACTIVE_REVIEW_UNIQUE_CONSTRAINT
+            )) {
+                return true;
+            }
+
+            cause = cause.getCause();
+        }
+
+        return false;
     }
 
     @Transactional(readOnly = true)

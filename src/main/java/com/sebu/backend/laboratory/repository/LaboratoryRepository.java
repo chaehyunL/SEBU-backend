@@ -2,8 +2,6 @@ package com.sebu.backend.laboratory.repository;
 
 import com.sebu.backend.laboratory.domain.Laboratory;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -117,83 +115,6 @@ public interface LaboratoryRepository extends JpaRepository<Laboratory, Long> {
         """)
     List<LaboratorySummaryProjection> findAllSummaries(
             @Param("userId") Long userId
-    );
-
-    /*
-     * REVIEW_COUNT_DESC 조회
-     *
-     * TODO:
-     * 후기 수 기준 정렬 자체가 필요하므로
-     * 다음 단계에서 별도 read-side 조회로 분리한다.
-     *
-     * 현재는 기존 동작을 유지한다.
-     */
-    @Query(
-            value = """
-                select l.id as id,
-                       l.name as name,
-                       l.nameSource as nameSource,
-                       l.websiteUrl as websiteUrl,
-                       p.id as professorId,
-                       p.name as professorName,
-                       p.email as professorEmail,
-                       c.id as collegeId,
-                       c.name as collegeName,
-                       d.id as departmentId,
-                       d.name as departmentName,
-                       l.recruitmentStatus as recruitmentStatus,
-
-                       count(distinct b.user.id) as bookmarkCount,
-
-                       case when sum(
-                            case when b.user.id = :userId then 1 else 0 end
-                       ) > 0 then true else false end as bookmarked,
-
-                       count(distinct r.id) as reviewCount
-
-                from Laboratory l
-
-                join l.professor p
-                join l.department d
-                join d.college c
-
-                left join Bookmark b
-                    on b.laboratory = l
-                    and b.user.deletedAt is null
-
-                left join LaboratoryReview r
-                    on r.laboratory = l
-                    and r.deletedAt is null
-
-                where l.deletedAt is null
-
-                group by
-                    l.id,
-                    l.name,
-                    l.nameSource,
-                    l.websiteUrl,
-                    p.id,
-                    p.name,
-                    p.email,
-                    c.id,
-                    c.name,
-                    d.id,
-                    d.name,
-                    l.recruitmentStatus
-
-                order by
-                    count(distinct r.id) desc,
-                    l.id desc
-                """,
-            countQuery = """
-                select count(l)
-                from Laboratory l
-                where l.deletedAt is null
-                """
-    )
-    Page<LaboratorySummaryProjection> findAllSummariesByReviewCount(
-            @Param("userId") Long userId,
-            Pageable pageable
     );
 
     /*

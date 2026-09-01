@@ -11,6 +11,9 @@ import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewSummaryResponse;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateRequest;
 import com.sebu.backend.laboratoryreview.dto.LaboratoryReviewUpdateResponse;
 import com.sebu.backend.laboratoryreview.service.LaboratoryReviewService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,11 +31,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/laboratories")
+@Tag(name = "연구실 리뷰", description = "연구실 리뷰 조회 및 관리 API")
 public class LaboratoryReviewController {
 
     private final LaboratoryReviewService laboratoryReviewService;
     private final CurrentUserProvider currentUserProvider;
 
+    @Operation(
+            summary = "연구실 리뷰 등록",
+            description = "인증한 사용자가 연구실에 리뷰를 등록합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "201",
+            description = "연구실 리뷰 등록 성공",
+            useReturnTypeSchema = true
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "409",
+            ref = "#/components/responses/Conflict"
+    )
     @PostMapping("/{laboratoryId}/reviews")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<LaboratoryReviewCreateResponse> createReview(
@@ -56,6 +74,10 @@ public class LaboratoryReviewController {
         return ApiResponse.success(response);
     }
 
+    @Operation(
+            summary = "연구실 리뷰 목록 조회",
+            description = "연구실의 리뷰를 페이지 단위로 조회합니다."
+    )
     @GetMapping("/{laboratoryId}/reviews")
     public ApiResponse<LaboratoryReviewListResponse> getReviews(
             @PathVariable Long laboratoryId,
@@ -76,6 +98,10 @@ public class LaboratoryReviewController {
         return ApiResponse.success(response);
     }
 
+    @Operation(
+            summary = "연구실 리뷰 요약 조회",
+            description = "연구실의 리뷰 통계 요약을 조회합니다."
+    )
     @GetMapping("/{laboratoryId}/review-summary")
     public ApiResponse<LaboratoryReviewSummaryResponse> getReviewSummary(
             @PathVariable Long laboratoryId
@@ -88,6 +114,11 @@ public class LaboratoryReviewController {
         return ApiResponse.success(response);
     }
 
+    @Operation(
+            summary = "내 연구실 리뷰 조회",
+            description = "인증한 사용자가 해당 연구실에 작성한 리뷰를 조회합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/{laboratoryId}/reviews/me")
     public ApiResponse<LaboratoryReviewMeResponse> getMyReview(
             @PathVariable Long laboratoryId
@@ -108,6 +139,15 @@ public class LaboratoryReviewController {
         return ApiResponse.success(response);
     }
 
+    @Operation(
+            summary = "연구실 리뷰 수정",
+            description = "인증한 사용자가 자신이 작성한 연구실 리뷰를 수정합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            ref = "#/components/responses/Forbidden"
+    )
     @PutMapping("/{laboratoryId}/reviews/{reviewId}")
     public ApiResponse<LaboratoryReviewUpdateResponse> updateReview(
             @PathVariable Long laboratoryId,
@@ -132,6 +172,15 @@ public class LaboratoryReviewController {
         return ApiResponse.success(response);
     }
 
+    @Operation(
+            summary = "연구실 리뷰 삭제",
+            description = "인증한 사용자가 자신이 작성한 연구실 리뷰를 삭제합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            ref = "#/components/responses/Forbidden"
+    )
     @DeleteMapping("/{laboratoryId}/reviews/{reviewId}")
     public ApiResponse<LaboratoryReviewDeleteResponse> deleteReview(
             @PathVariable Long laboratoryId,

@@ -9,6 +9,9 @@ import com.sebu.backend.mypage.dto.ProfileUpdateRequest;
 import com.sebu.backend.mypage.service.MyPageService;
 import com.sebu.backend.mypage.service.ProfileService;
 import com.sebu.backend.user.service.AccountService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/users/me")
+@Tag(name = "마이페이지", description = "로그인한 사용자의 마이페이지, 프로필 및 회원 탈퇴 API")
 public class MyPageController {
 
     private final MyPageService myPageService;
@@ -30,6 +34,8 @@ public class MyPageController {
     private final AccountService accountService;
 
 
+    @Operation(summary = "마이페이지 조회", description = "로그인한 사용자의 마이페이지 정보를 조회합니다.")
+    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/mypage")
     public ResponseEntity<ApiResponse<MyPageResponse>> getMyPage(){
         Long userId = currentUserProvider.currentUserId()
@@ -42,6 +48,12 @@ public class MyPageController {
                 .body(ApiResponse.success(response));
     }
 
+    @Operation(summary = "프로필 수정", description = "로그인한 사용자의 프로필 정보를 수정합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "409",
+            ref = "#/components/responses/Conflict"
+    )
     @PutMapping("/profile")
     public ResponseEntity<ApiResponse<ProfileResponse>> updateProfile(
             @Valid @RequestBody ProfileUpdateRequest request
@@ -57,6 +69,12 @@ public class MyPageController {
                 .body(ApiResponse.success(response));
     }
 
+    @Operation(summary = "회원 탈퇴", description = "로그인한 사용자의 계정을 탈퇴 처리합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "204",
+            description = "회원 탈퇴 성공"
+    )
     @DeleteMapping
     public ResponseEntity<Void> withdraw() {
         Long userId = currentUserProvider.currentUserId()

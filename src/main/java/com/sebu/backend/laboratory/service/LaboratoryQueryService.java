@@ -73,6 +73,16 @@ public class LaboratoryQueryService {
                         PageRequest.of(page, size)
                 );
 
+        Map<Long, Long> reviewCounts =
+                reviewCountPage.getContent()
+                        .stream()
+                        .collect(
+                                Collectors.toMap(
+                                        LaboratoryReviewCountPageProjection::getLaboratoryId,
+                                        LaboratoryReviewCountPageProjection::getReviewCount
+                                )
+                        );
+
         List<Long> laboratoryIds =
                 reviewCountPage.getContent()
                         .stream()
@@ -112,7 +122,10 @@ public class LaboratoryQueryService {
                         .toList();
 
         List<LaboratoryResult> laboratories =
-                assembleLaboratories(orderedSummaries);
+                assembleLaboratories(
+                        orderedSummaries,
+                        reviewCounts
+                );
 
         return new LaboratoriesPagedResult(
                 laboratories,
@@ -131,6 +144,19 @@ public class LaboratoryQueryService {
 
         Map<Long, Long> reviewCounts =
                 findReviewCounts(laboratoryIds);
+
+        return assembleLaboratories(
+                summaries,
+                reviewCounts
+        );
+    }
+
+    private List<LaboratoryResult> assembleLaboratories(
+            List<LaboratorySummaryProjection> summaries,
+            Map<Long, Long> reviewCounts
+    ) {
+        List<Long> laboratoryIds =
+                laboratoryIds(summaries);
 
         Map<Long, List<String>> researchFields =
                 findResearchFields(laboratoryIds);

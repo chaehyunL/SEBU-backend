@@ -3,6 +3,8 @@ package com.sebu.backend.laboratory.controller;
 import com.sebu.backend.global.response.ApiResponse;
 import com.sebu.backend.laboratory.dto.LaboratoriesPagedResponse;
 import com.sebu.backend.laboratory.dto.LaboratoriesResponse;
+import com.sebu.backend.laboratory.exception.InvalidLaboratoryPageException;
+import com.sebu.backend.laboratory.exception.InvalidLaboratorySizeException;
 import com.sebu.backend.laboratory.service.LaboratoryQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +28,14 @@ public class LaboratoryController {
         if ("REVIEW_COUNT_DESC".equals(sort)) {
             int resolvedPage = page == null ? 0 : page;
             int resolvedSize = size == null ? 20 : size;
+
+            if (resolvedPage < 0) {
+                throw new InvalidLaboratoryPageException();
+            }
+
+            if (resolvedSize < 1 || resolvedSize > 50) {
+                throw new InvalidLaboratorySizeException();
+            }
 
             return ApiResponse.success(
                     LaboratoriesPagedResponse.from(

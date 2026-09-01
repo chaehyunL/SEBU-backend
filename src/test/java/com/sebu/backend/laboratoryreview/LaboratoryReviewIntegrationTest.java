@@ -20,7 +20,10 @@ import com.sebu.backend.laboratoryreview.service.LaboratoryReviewService;
 import com.sebu.backend.professor.domain.Professor;
 import com.sebu.backend.user.domain.AppUser;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.PersistenceContext;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,6 +46,9 @@ class LaboratoryReviewIntegrationTest {
 
     @PersistenceContext
     EntityManager entityManager;
+
+    @Autowired
+    EntityManagerFactory entityManagerFactory;
 
     @Test
     void createsLaboratoryReview() {
@@ -437,5 +443,67 @@ class LaboratoryReviewIntegrationTest {
                                 fixture.userId()
                         )
         ).isTrue();
+    }
+
+    @Test
+    void reviewListQueryCountDoesNotIncreaseWithNumberOfReviews() {
+        // given
+        TestFixture fixture = createFixture();
+
+        for (int i = 0; i < 10; i++) {
+            AppUser user = new AppUser(
+                    "query-test-" + i + "@test.com"
+            );
+            entityManager.persist(user);
+
+            Laboratory laboratory = entityManager.find(
+                    Laboratory.class,
+                    fixture.laboratoryId()
+            );
+
+            LaboratoryReview review = new LaboratoryReview(
+                    laboratory,
+                    user,
+                    LaboratoryReviewCategory.RESEARCH_ENVIRONMENT,
+                    ResearchIntensity.LOW,
+                    Compensation.SUFFICIENT,
+                    Atmosphere.COOPERATIVE,
+                    Set.of(
+                            LaboratoryReviewTag.PROJECT_OPPORTUNITY,
+                            LaboratoryReviewTag.ACTIVE_FEEDBACK
+                    ),
+                    "쿼리 수가 후기 개수에 따라 증가하지 않는지 확인하기 위한 테스트 후기입니다.",
+                    2026,
+                    ParticipationTerm.FIRST_SEMESTER
+            );
+
+            entityManager.persist(review);
+        }
+
+        entityManager.flush();
+        entityManager.clear();
+
+        Statistics statistics =
+                entityManagerFactory
+                        .unwrap(SessionFactory.class)
+                        .getStatistics();
+
+        statistics.clear();
+
+        // when
+        var response = laboratoryReviewService.getReviews(
+                fixture.laboratoryId(),
+                null,
+                0,
+                20
+        );
+
+        // then
+        assertThat(response.reviews()).hasSize(10);
+
+        long queryCount =
+                statistics.getPrepareStatementCount();
+
+        assertThat(queryCount).isLessThanOrEqualTo(4);
     }
 }

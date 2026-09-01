@@ -115,12 +115,45 @@ public class LaboratoryReviewService {
                                 pageable
                         );
 
+        List<LaboratoryReview> reviewEntities =
+                reviewPage.getContent();
+
+        List<Long> reviewIds =
+                reviewEntities.stream()
+                        .map(LaboratoryReview::getId)
+                        .toList();
+
+        Map<Long, List<String>> tagsByReviewId;
+
+        if (reviewIds.isEmpty()) {
+            tagsByReviewId = Map.of();
+        } else {
+            tagsByReviewId =
+                    laboratoryReviewRepository
+                            .findTagsByReviewIds(reviewIds)
+                            .stream()
+                            .collect(
+                                    Collectors.groupingBy(
+                                            row -> ((Number) row[0]).longValue(),
+                                            LinkedHashMap::new,
+                                            Collectors.mapping(
+                                                    row -> (String) row[1],
+                                                    Collectors.toList()
+                                            )
+                                    )
+                            );
+        }
+
         List<LaboratoryReviewListResponse.ReviewItem> reviews =
-                reviewPage.getContent()
-                        .stream()
-                        .map(
-                                LaboratoryReviewListResponse
-                                        .ReviewItem::from
+                reviewEntities.stream()
+                        .map(review ->
+                                LaboratoryReviewListResponse.ReviewItem.from(
+                                        review,
+                                        tagsByReviewId.getOrDefault(
+                                                review.getId(),
+                                                List.of()
+                                        )
+                                )
                         )
                         .toList();
 

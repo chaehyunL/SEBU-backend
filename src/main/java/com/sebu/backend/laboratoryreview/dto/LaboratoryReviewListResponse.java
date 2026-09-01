@@ -44,13 +44,9 @@ public record LaboratoryReviewListResponse(
     ) {
 
         public static ReviewItem from(
-                LaboratoryReview review
+                LaboratoryReview review,
+                List<String> tags
         ) {
-            List<String> tags = review.getTags()
-                    .stream()
-                    .map(Enum::name)
-                    .toList();
-
             return new ReviewItem(
                     review.getId(),
                     review.getCategory().name(),

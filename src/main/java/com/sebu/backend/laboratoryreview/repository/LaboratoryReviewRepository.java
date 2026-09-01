@@ -4,6 +4,8 @@ import com.sebu.backend.laboratoryreview.domain.LaboratoryReview;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,5 +38,15 @@ public interface LaboratoryReviewRepository
 
     List<LaboratoryReview> findAllByLaboratoryIdAndDeletedAtIsNull(
             Long laboratoryId
+    );
+
+    @Query(value = """
+        SELECT review_id, tag
+        FROM laboratory_review_tag
+        WHERE review_id IN (:reviewIds)
+        ORDER BY review_id
+        """, nativeQuery = true)
+    List<Object[]> findTagsByReviewIds(
+            @Param("reviewIds") List<Long> reviewIds
     );
 }

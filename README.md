@@ -67,6 +67,15 @@ Windows에서는 저장소 루트에서 다음 명령을 실행합니다.
 - Username: `sa`
 - Password: 없음
 
+### API 문서
+
+로컬 환경에서 애플리케이션을 실행한 후 Swagger UI에서 API 명세를 확인하고 직접 요청할 수 있습니다.
+
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+인증이 필요한 API는 로그인으로 발급받은 Access Token을 Swagger UI의 `Authorize` 버튼에 입력합니다. `Bearer` 접두사는 Swagger UI가 자동으로 추가하므로 토큰 값만 입력합니다. 운영 환경에서는 Swagger UI와 OpenAPI 문서를 노출하지 않습니다.
+
 ### 세종 포털 로그인 TLS 호환성
 
 세종 포털과 학사정보시스템은 현재 Java 21 기본 보안 정책이 차단하는 구형

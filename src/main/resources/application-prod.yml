@@ -15,6 +15,12 @@ server:
   tomcat:
     redirect-context-root: false
 
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
 app:
   auth:
     transport:

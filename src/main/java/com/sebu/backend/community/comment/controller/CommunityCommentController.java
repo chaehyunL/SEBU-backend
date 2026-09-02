@@ -11,6 +11,9 @@ import com.sebu.backend.community.comment.service.CommunityCommentCommandService
 import com.sebu.backend.community.comment.service.CommunityCommentQueryService;
 import com.sebu.backend.global.auth.CurrentUserProvider;
 import com.sebu.backend.global.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +28,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@Tag(
+        name = "커뮤니티 댓글",
+        description = "커뮤니티 게시글 댓글 조회 및 관리 API"
+)
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/posts/{postId}/comments")
@@ -33,6 +40,10 @@ public class CommunityCommentController {
     private final CommunityCommentQueryService queryService;
     private final CurrentUserProvider currentUserProvider;
 
+    @Operation(
+            summary = "댓글 목록 조회",
+            description = "게시글 ID와 페이지 정보로 댓글 목록을 조회합니다."
+    )
     @GetMapping
     public ApiResponse<CommentListResponse> findComments(
             @PathVariable Long postId,
@@ -42,6 +53,16 @@ public class CommunityCommentController {
         return ApiResponse.success(queryService.findComments(postId, page, size));
     }
 
+    @Operation(
+            summary = "댓글 작성",
+            description = "로그인한 사용자가 게시글에 새 댓글을 작성합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "201",
+            description = "댓글 작성 성공",
+            useReturnTypeSchema = true
+    )
     @PostMapping
     public ResponseEntity<ApiResponse<CommentCreateResponse>> create(
             @PathVariable Long postId,
@@ -55,6 +76,15 @@ public class CommunityCommentController {
                 )));
     }
 
+    @Operation(
+            summary = "댓글 수정",
+            description = "로그인한 사용자가 자신이 작성한 댓글을 수정합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            ref = "#/components/responses/Forbidden"
+    )
     @PatchMapping("/{commentId}")
     public ApiResponse<CommentUpdateResponse> update(
             @PathVariable Long postId,
@@ -69,6 +99,15 @@ public class CommunityCommentController {
         ));
     }
 
+    @Operation(
+            summary = "댓글 삭제",
+            description = "로그인한 사용자가 자신이 작성한 댓글을 삭제합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "403",
+            ref = "#/components/responses/Forbidden"
+    )
     @DeleteMapping("/{commentId}")
     public ApiResponse<CommentDeleteResponse> delete(
             @PathVariable Long postId,

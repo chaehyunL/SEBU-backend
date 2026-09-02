@@ -91,6 +91,15 @@ public class SecurityConfiguration {
 
                 .authorizeHttpRequests(authorize -> authorize
 
+                        // 개발 환경 API 문서
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml"
+                        ).permitAll()
+
                         // 인증 API는 로그인하지 않은 사용자도 접근 가능
                         .requestMatchers(
                                 POST,

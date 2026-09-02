@@ -8,6 +8,8 @@ group = 'com.sebu'
 version = '0.0.1-SNAPSHOT'
 description = 'SEBU backend service'
 
+ext['tomcat.version'] = '10.1.59'
+
 java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(21)

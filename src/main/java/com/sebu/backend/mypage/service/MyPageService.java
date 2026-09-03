@@ -34,10 +34,13 @@ public class MyPageService {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
         long bookmarkedLaboratoryCount =
-                bookmarkRepository.countByUser_Id(userId);
+                bookmarkRepository.countByUser_IdAndLaboratory_DeletedAtIsNull(userId);
 
         List<Bookmark> bookmarks =
-                bookmarkRepository.findTop5ByUser_IdOrderByCreatedAtDesc(userId);
+                bookmarkRepository
+                        .findTop5ByUser_IdAndLaboratory_DeletedAtIsNullOrderByCreatedAtDesc(
+                                userId
+                        );
 
         boolean hasNext = bookmarkedLaboratoryCount > 5;
 

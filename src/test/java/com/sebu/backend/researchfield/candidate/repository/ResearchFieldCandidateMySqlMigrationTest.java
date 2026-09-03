@@ -27,7 +27,7 @@ class ResearchFieldCandidateMySqlMigrationTest {
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4");
 
     @Test
-    void v19DataSurvivesV20AndV21CandidateConstraintsAreEnforcedOnMySql()
+    void candidateConstraintsAndLaboratoryPurgeCascadeAreEnforcedOnMySql()
         throws Exception {
         migrateToV19();
         long laboratoryId;
@@ -116,22 +116,13 @@ class ResearchFieldCandidateMySqlMigrationTest {
                 "DELETE FROM laboratory_research_field_candidate WHERE id = ?",
                 sourceId
             )).isInstanceOf(SQLException.class);
-            executeUpdate(
-                connection,
-                "DELETE FROM laboratory_research_field_candidate WHERE id = ?",
-                splitId
-            );
-            executeUpdate(
-                connection,
-                "DELETE FROM laboratory_research_field_candidate WHERE id = ?",
-                sourceId
-            );
 
+            migrateToLatest();
             executeUpdate(connection, "DELETE FROM laboratory WHERE id = ?", laboratoryId);
             assertThat(count(
                 connection,
-                "SELECT COUNT(*) FROM laboratory_research_field_candidate WHERE id = ?",
-                candidateId
+                "SELECT COUNT(*) FROM laboratory_research_field_candidate WHERE laboratory_id = ?",
+                laboratoryId
             )).isZero();
         }
     }
@@ -159,6 +150,14 @@ class ResearchFieldCandidateMySqlMigrationTest {
             .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
             .locations("classpath:db/migration")
             .target(MigrationVersion.fromVersion("21"))
+            .load()
+            .migrate();
+    }
+
+    private void migrateToLatest() {
+        Flyway.configure()
+            .dataSource(MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword())
+            .locations("classpath:db/migration")
             .load()
             .migrate();
     }

@@ -6,7 +6,6 @@ import com.sebu.backend.bookmark.dto.BookmarkedLaboratoriesResponse;
 import com.sebu.backend.bookmark.exception.InvalidCursorException;
 import com.sebu.backend.bookmark.exception.InvalidSizeException;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
-import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult;
 import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
 import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
@@ -14,7 +13,6 @@ import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
 import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
-import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,23 +39,14 @@ public class BookmarkService {
 
     @Transactional
     public void add(Long userId, Long laboratoryId) {
-        AppUser user = appUserRepository.findById(userId)
+        appUserRepository.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
 
-        Laboratory laboratory = laboratoryRepository
+        laboratoryRepository
                 .findByIdAndDeletedAtIsNull(laboratoryId)
                 .orElseThrow(LaboratoryNotFoundException::new);
 
-        BookmarkId bookmarkId =
-                new BookmarkId(userId, laboratoryId);
-
-        if (bookmarkRepository.existsById(bookmarkId)) {
-            return;
-        }
-
-        bookmarkRepository.save(
-                new Bookmark(user, laboratory)
-        );
+        bookmarkRepository.insertIgnore(userId, laboratoryId);
     }
 
     @Transactional(readOnly = true)
@@ -126,17 +115,15 @@ public class BookmarkService {
     @Transactional
     public void remove(Long userId, Long laboratoryId) {
         laboratoryRepository
-                .findByIdAndDeletedAtIsNull(laboratoryId)
+                .findById(laboratoryId)
                 .orElseThrow(LaboratoryNotFoundException::new);
 
-        BookmarkId bookmarkId =
-                new BookmarkId(userId, laboratoryId);
-
-        if (!bookmarkRepository.existsById(bookmarkId)) {
-            return;
-        }
-
-        bookmarkRepository.deleteById(bookmarkId);
+        bookmarkRepository.deleteById(
+                new BookmarkId(
+                        userId,
+                        laboratoryId
+                )
+        );
     }
 
     private Map<Long, LaboratorySummaryProjection> getLaboratorySummaries(

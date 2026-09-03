@@ -100,4 +100,51 @@ public class MyPageServiceTest {
                         .bookmarked()
         ).isTrue();
     }
+
+    @Test
+    void 마이페이지에서_삭제된_연구실의_북마크는_제외한다() {
+        College college = collegeRepository.save(
+                new College("삭제연구실대학")
+        );
+        Department department = departmentRepository.save(
+                new Department(college, "삭제연구실학과")
+        );
+        Professor professor = professorRepository.save(
+                new Professor(department, "삭제연구실교수", null)
+        );
+        Laboratory activeLaboratory = laboratoryRepository.save(
+                new Laboratory(
+                        professor,
+                        department,
+                        "활성 연구실",
+                        null,
+                        RecruitmentStatus.RECRUITING
+                )
+        );
+        Laboratory deletedLaboratory = laboratoryRepository.save(
+                new Laboratory(
+                        professor,
+                        department,
+                        "삭제 연구실",
+                        null,
+                        RecruitmentStatus.CLOSED
+                )
+        );
+        AppUser user = appUserRepository.save(
+                new AppUser("mypage-deleted-laboratory@example.com")
+        );
+        bookmarkRepository.save(new Bookmark(user, activeLaboratory));
+        bookmarkRepository.save(new Bookmark(user, deletedLaboratory));
+        deletedLaboratory.softDelete();
+        laboratoryRepository.flush();
+
+        MyPageResponse result = myPageService.getMyPage(user.getId());
+
+        assertThat(result.summary().bookmarkedLaboratoryCount()).isOne();
+        assertThat(result.bookmarkedLaboratories().items())
+                .singleElement()
+                .extracting(item -> item.laboratory().name())
+                .isEqualTo("활성 연구실");
+        assertThat(result.bookmarkedLaboratories().hasNext()).isFalse();
+    }
 }

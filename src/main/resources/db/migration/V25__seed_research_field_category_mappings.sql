@@ -1,3 +1,5 @@
+-- The classification table is a mapping reference only.
+-- Do not create research fields that have not gone through the normal registration flow.
 CREATE TEMPORARY TABLE tmp_research_field_category_seed (
     research_field_name VARCHAR(100) NOT NULL,
     category_code VARCHAR(50) NOT NULL,
@@ -542,13 +544,6 @@ VALUES
     ('Wearable healthcare sensor platform', 'BIOMED_HEALTH'),
     ('XAI 기반 비전 대규모 언어 모델(VLLM)', 'AI_ML'),
     ('XAI 등', 'AI_ML');
-
-INSERT INTO research_field (name)
-SELECT DISTINCT seed.research_field_name
-FROM tmp_research_field_category_seed seed
-LEFT JOIN research_field existing
-    ON existing.name = seed.research_field_name
-WHERE existing.id IS NULL;
 
 INSERT INTO research_field_category_mapping (research_field_id, category_id)
 SELECT field.id, category.id

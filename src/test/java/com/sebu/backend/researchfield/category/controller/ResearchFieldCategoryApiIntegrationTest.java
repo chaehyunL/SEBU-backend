@@ -24,7 +24,7 @@ class ResearchFieldCategoryApiIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.error").doesNotExist())
-            .andExpect(jsonPath("$.data.categories.length()").value(18))
+            .andExpect(jsonPath("$.data.categories.length()").value(21))
             .andExpect(jsonPath("$.data.categories[0].code").value("AI_ML"))
             .andExpect(jsonPath("$.data.categories[0].name")
                 .value("인공지능·기계학습"))
@@ -32,6 +32,18 @@ class ResearchFieldCategoryApiIntegrationTest {
             .andExpect(jsonPath("$.data.categories[0].description").isNotEmpty())
             .andExpect(jsonPath("$.data.categories[17].code")
                 .value("POLICY_MANAGEMENT"))
-            .andExpect(jsonPath("$.data.categories[17].displayOrder").value(18));
+            .andExpect(jsonPath("$.data.categories[17].displayOrder").value(18))
+            .andExpect(jsonPath("$.data.categories[18].code")
+                .value("MATH_STATISTICS"))
+            .andExpect(jsonPath("$.data.categories[18].name").value("수학·통계"))
+            .andExpect(jsonPath("$.data.categories[18].displayOrder").value(19))
+            .andExpect(jsonPath("$.data.categories[19].code")
+                .value("PHYSICS_ASTRONOMY"))
+            .andExpect(jsonPath("$.data.categories[19].name").value("물리·천문"))
+            .andExpect(jsonPath("$.data.categories[19].displayOrder").value(20))
+            .andExpect(jsonPath("$.data.categories[20].code")
+                .value("CHEMISTRY_MATERIALS"))
+            .andExpect(jsonPath("$.data.categories[20].name").value("화학·소재"))
+            .andExpect(jsonPath("$.data.categories[20].displayOrder").value(21));
     }
 }

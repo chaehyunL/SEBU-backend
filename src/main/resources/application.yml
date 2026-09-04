@@ -27,6 +27,7 @@ app:
     max-requests: 120
     search-max-requests: 60
     bookmark-max-requests: 30
+    content-write-max-requests: 10
     anonymous-ip-multiplier: 5
     window: 1m
     login:

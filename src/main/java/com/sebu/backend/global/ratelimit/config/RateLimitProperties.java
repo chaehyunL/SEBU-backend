@@ -14,6 +14,7 @@ public record RateLimitProperties(
     @Min(1) int maxRequests,
     @Min(1) int searchMaxRequests,
     @Min(1) int bookmarkMaxRequests,
+    @Min(1) int contentWriteMaxRequests,
     @Min(1) int anonymousIpMultiplier,
     @NotNull Duration window
 ) {

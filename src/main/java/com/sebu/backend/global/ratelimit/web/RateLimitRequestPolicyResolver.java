@@ -35,8 +35,16 @@ public class RateLimitRequestPolicyResolver {
     }
 
     private boolean isSearch(HttpServletRequest request) {
-        return HttpMethod.GET.matches(request.getMethod())
-            && "/api/v1/laboratories".equals(request.getRequestURI());
+        if (!HttpMethod.GET.matches(request.getMethod())) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        return "/api/v1/laboratories".equals(uri)
+            || ("/api/v1/posts".equals(uri) && hasText(request.getParameter("keyword")));
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private boolean isBookmarkMutation(HttpServletRequest request) {

@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -77,15 +78,11 @@ class RateLimitApiIntegrationTest {
         assertThat(rejected.getRequest().getSession(false)).isNull();
     }
 
-    @Test
-    void authenticatedUsersHaveIndependentLimitsRegardlessOfIp() throws Exception {
-        when(currentUserProvider.currentUserId()).thenReturn(Optional.of(100L));
-        mockMvc.perform(requestFrom("192.0.2.20")).andExpect(status().isOk());
-        mockMvc.perform(requestFrom("192.0.2.20")).andExpect(status().isOk());
-        mockMvc.perform(requestFrom("192.0.2.20")).andExpect(status().isTooManyRequests());
-
-        when(currentUserProvider.currentUserId()).thenReturn(Optional.of(200L));
-        mockMvc.perform(requestFrom("192.0.2.20")).andExpect(status().isOk());
+    private static org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder authenticatedRequestFrom(
+        String ip,
+        String subject
+    ) {
+        return requestFrom(ip).with(jwt().jwt(token -> token.subject(subject).claim("role", "USER")));
     }
 
     private static org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder requestFrom(String ip) {
@@ -93,5 +90,16 @@ class RateLimitApiIntegrationTest {
             request.setRemoteAddr(ip);
             return request;
         });
+    }
+
+    @Test
+    void authenticatedUsersHaveIndependentLimitsRegardlessOfIp() throws Exception {
+        when(currentUserProvider.currentUserId()).thenReturn(Optional.of(100L));
+        mockMvc.perform(authenticatedRequestFrom("192.0.2.20", "100")).andExpect(status().isOk());
+        mockMvc.perform(authenticatedRequestFrom("192.0.2.20", "100")).andExpect(status().isOk());
+        mockMvc.perform(authenticatedRequestFrom("192.0.2.20", "100")).andExpect(status().isTooManyRequests());
+
+        when(currentUserProvider.currentUserId()).thenReturn(Optional.of(200L));
+        mockMvc.perform(authenticatedRequestFrom("192.0.2.20", "200")).andExpect(status().isOk());
     }
 }

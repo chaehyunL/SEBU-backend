@@ -1,22 +1,33 @@
 package com.sebu.backend.global.ratelimit.web;
 
-import com.sebu.backend.global.auth.CurrentUserProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 
 @Component
-@RequiredArgsConstructor
 public class RateLimitKeyResolver {
-    private final CurrentUserProvider currentUserProvider;
 
     public ResolvedKeys resolve(HttpServletRequest request) {
-        return currentUserProvider.currentUserId()
-            .map(userId -> new ResolvedKeys(List.of("USER:" + userId), true))
+        return authenticatedSubject()
+            .map(subject -> new ResolvedKeys(List.of("USER:" + subject), true))
             .orElseGet(() -> anonymousKeys(request));
+    }
+
+    private Optional<String> authenticatedSubject() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return Optional.empty();
+        }
+        if (!(authentication.getPrincipal() instanceof Jwt jwt)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(jwt.getSubject());
     }
 
     private ResolvedKeys anonymousKeys(HttpServletRequest request) {

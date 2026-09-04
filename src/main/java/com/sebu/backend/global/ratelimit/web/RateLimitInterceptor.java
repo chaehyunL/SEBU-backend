@@ -31,7 +31,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         var primaryPolicy = policyResolver.resolve(request);
         RateLimitDecision decision = RateLimitDecision.permit();
         for (int index = 0; index < keys.values().size(); index++) {
-            var policy = !keys.authenticated() && index == 1
+            var policy = !keys.authenticated() && index == 0
                 ? policyResolver.anonymousIpPolicy(primaryPolicy)
                 : primaryPolicy;
             decision = rateLimiter.tryAcquire(keys.values().get(index), policy);

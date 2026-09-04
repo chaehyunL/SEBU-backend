@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -56,6 +57,24 @@ class RateLimitApiIntegrationTest {
         }
         mockMvc.perform(requestFrom("192.0.2.30").session(new MockHttpSession()))
             .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void anonymousRequestsWithoutSessionUseOnlyIpLimitAndDoNotCreateSession() throws Exception {
+        when(currentUserProvider.currentUserId()).thenReturn(Optional.empty());
+
+        for (int index = 0; index < 4; index++) {
+            var result = mockMvc.perform(requestFrom("192.0.2.40"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+            assertThat(result.getRequest().getSession(false)).isNull();
+        }
+
+        var rejected = mockMvc.perform(requestFrom("192.0.2.40"))
+            .andExpect(status().isTooManyRequests())
+            .andReturn();
+        assertThat(rejected.getRequest().getSession(false)).isNull();
     }
 
     @Test

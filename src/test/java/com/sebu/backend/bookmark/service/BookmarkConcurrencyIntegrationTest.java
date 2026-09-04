@@ -15,6 +15,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,7 +33,19 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
+@Testcontainers(disabledWithoutDocker = true)
 class BookmarkConcurrencyIntegrationTest {
+
+    @Container
+    static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4");
+
+    @DynamicPropertySource
+    static void configureMySql(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
+        registry.add("spring.datasource.username", MYSQL::getUsername);
+        registry.add("spring.datasource.password", MYSQL::getPassword);
+        registry.add("spring.datasource.driver-class-name", MYSQL::getDriverClassName);
+    }
 
     @Autowired
     BookmarkService bookmarkService;
@@ -54,51 +71,46 @@ class BookmarkConcurrencyIntegrationTest {
     @Test
     void simultaneousBookmarkRequestsSucceedWithOneBookmark() throws Exception {
         TestFixture fixture = createFixture();
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        Callable<Void> addBookmark = () -> {
+            ready.countDown();
+            start.await(5, TimeUnit.SECONDS);
+            bookmarkService.add(fixture.userId(), fixture.laboratoryId());
+            return null;
+        };
+        ExecutorService executor = Executors.newFixedThreadPool(2);
 
         try {
-            CountDownLatch ready = new CountDownLatch(2);
-            CountDownLatch start = new CountDownLatch(1);
-            Callable<Void> addBookmark = () -> {
-                ready.countDown();
-                start.await(5, TimeUnit.SECONDS);
-                bookmarkService.add(fixture.userId(), fixture.laboratoryId());
-                return null;
-            };
-            ExecutorService executor = Executors.newFixedThreadPool(2);
-
-            try {
-                List<Future<Void>> futures = List.of(
-                        executor.submit(addBookmark),
-                        executor.submit(addBookmark)
-                );
-
-                assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
-                start.countDown();
-
-                futures.get(0).get(10, TimeUnit.SECONDS);
-                futures.get(1).get(10, TimeUnit.SECONDS);
-            } finally {
-                start.countDown();
-                executor.shutdownNow();
-                executor.awaitTermination(5, TimeUnit.SECONDS);
-            }
-
-            Integer bookmarkCount = jdbcTemplate.queryForObject(
-                    """
-                    SELECT COUNT(*)
-                    FROM bookmark
-                    WHERE user_id = ?
-                      AND laboratory_id = ?
-                    """,
-                    Integer.class,
-                    fixture.userId(),
-                    fixture.laboratoryId()
+            List<Future<Void>> futures = List.of(
+                    executor.submit(addBookmark),
+                    executor.submit(addBookmark)
             );
 
-            assertThat(bookmarkCount).isOne();
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            futures.get(0).get(10, TimeUnit.SECONDS);
+            futures.get(1).get(10, TimeUnit.SECONDS);
         } finally {
-            deleteFixture(fixture);
+            start.countDown();
+            executor.shutdownNow();
+            executor.awaitTermination(5, TimeUnit.SECONDS);
         }
+
+        Integer bookmarkCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM bookmark
+                WHERE user_id = ?
+                  AND laboratory_id = ?
+                """,
+                Integer.class,
+                fixture.userId(),
+                fixture.laboratoryId()
+        );
+
+        assertThat(bookmarkCount).isOne();
     }
 
     private TestFixture createFixture() {
@@ -125,34 +137,9 @@ class BookmarkConcurrencyIntegrationTest {
                 new AppUser("bookmark-" + suffix + "@example.com")
         );
 
-        return new TestFixture(
-                college.getId(),
-                department.getId(),
-                professor.getId(),
-                laboratory.getId(),
-                user.getId()
-        );
+        return new TestFixture(laboratory.getId(), user.getId());
     }
 
-    private void deleteFixture(TestFixture fixture) {
-        jdbcTemplate.update(
-                "DELETE FROM bookmark WHERE user_id = ? AND laboratory_id = ?",
-                fixture.userId(),
-                fixture.laboratoryId()
-        );
-        jdbcTemplate.update("DELETE FROM laboratory WHERE id = ?", fixture.laboratoryId());
-        jdbcTemplate.update("DELETE FROM professor WHERE id = ?", fixture.professorId());
-        jdbcTemplate.update("DELETE FROM department WHERE id = ?", fixture.departmentId());
-        jdbcTemplate.update("DELETE FROM college WHERE id = ?", fixture.collegeId());
-        jdbcTemplate.update("DELETE FROM app_user WHERE id = ?", fixture.userId());
-    }
-
-    private record TestFixture(
-            Long collegeId,
-            Long departmentId,
-            Long professorId,
-            Long laboratoryId,
-            Long userId
-    ) {
+    private record TestFixture(Long laboratoryId, Long userId) {
     }
 }

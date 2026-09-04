@@ -67,6 +67,73 @@ public class BookmarkServiceTest {
     }
 
     @Test
+    void softDeletedLaboratoryIsExcludedFromBookmarks() {
+        College college = collegeRepository.save(new College("북마크조회대학"));
+        Department department = departmentRepository.save(
+                new Department(college, "북마크조회학과")
+        );
+        Professor professor = professorRepository.save(
+                new Professor(department, "북마크조회교수", null)
+        );
+        Laboratory laboratory = laboratoryRepository.save(
+                new Laboratory(
+                        professor,
+                        department,
+                        "삭제된 북마크 연구실",
+                        null,
+                        RecruitmentStatus.CLOSED
+                )
+        );
+        AppUser user = appUserRepository.save(
+                new AppUser("deleted-laboratory-bookmark@example.com")
+        );
+        bookmarkRepository.save(new Bookmark(user, laboratory));
+        laboratory.softDelete();
+        entityManager.flush();
+        entityManager.clear();
+
+        BookmarkedLaboratoriesResponse result =
+                bookmarkService.getBookmarkedLaboratories(user.getId(), null, 20);
+
+        assertThat(result.items()).isEmpty();
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.nextCursor()).isNull();
+    }
+
+    @Test
+    void softDeletedLaboratoryBookmarkCanBeRemoved() {
+        College college = collegeRepository.save(new College("삭제북마크대학"));
+        Department department = departmentRepository.save(
+                new Department(college, "삭제북마크학과")
+        );
+        Professor professor = professorRepository.save(
+                new Professor(department, "삭제북마크교수", null)
+        );
+        Laboratory laboratory = laboratoryRepository.save(
+                new Laboratory(
+                        professor,
+                        department,
+                        "삭제 후 북마크 해제 연구실",
+                        null,
+                        RecruitmentStatus.CLOSED
+                )
+        );
+        AppUser user = appUserRepository.save(
+                new AppUser("remove-deleted-laboratory-bookmark@example.com")
+        );
+        bookmarkRepository.save(new Bookmark(user, laboratory));
+        laboratory.softDelete();
+        entityManager.flush();
+        entityManager.clear();
+
+        bookmarkService.remove(user.getId(), laboratory.getId());
+
+        assertThat(bookmarkRepository.existsById(
+                new BookmarkId(user.getId(), laboratory.getId())
+        )).isFalse();
+    }
+
+    @Test
     void 북마크가_없으면_빈_목록을_반환한다() {
         AppUser user = appUserRepository.save(
                 new AppUser("bookmark-test@example.com")
@@ -296,7 +363,9 @@ public class BookmarkServiceTest {
 
         // then
         assertThat(
-                bookmarkRepository.countByUser_Id(user.getId())
+                bookmarkRepository.countByUser_IdAndLaboratory_DeletedAtIsNull(
+                        user.getId()
+                )
         ).isEqualTo(1);
     }
 

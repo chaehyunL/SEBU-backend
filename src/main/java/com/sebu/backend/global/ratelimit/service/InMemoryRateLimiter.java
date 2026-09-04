@@ -1,11 +1,9 @@
 package com.sebu.backend.global.ratelimit.service;
 
-import com.sebu.backend.global.ratelimit.config.RateLimitProperties;
-import com.sebu.backend.global.ratelimit.dto.RateLimitDecision;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.sebu.backend.global.ratelimit.dto.RateLimitDecision;
 import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -15,51 +13,50 @@ import java.time.Instant;
 public class InMemoryRateLimiter implements RateLimiter {
     private static final long MAXIMUM_KEYS = 100_000;
 
-    private final RateLimitProperties properties;
     private final Clock clock;
-    private final Cache<String, FixedWindow> windows;
+    private final Cache<String, TokenBucket> buckets;
 
-    @Autowired
-    public InMemoryRateLimiter(RateLimitProperties properties) {
-        this(properties, Clock.systemUTC());
+    public InMemoryRateLimiter() {
+        this(Clock.systemUTC());
     }
 
-    InMemoryRateLimiter(RateLimitProperties properties, Clock clock) {
-        this.properties = properties;
+    InMemoryRateLimiter(Clock clock) {
         this.clock = clock;
-        this.windows = Caffeine.newBuilder()
+        this.buckets = Caffeine.newBuilder()
             .maximumSize(MAXIMUM_KEYS)
-            .expireAfterAccess(properties.window().multipliedBy(2))
+            .expireAfterAccess(Duration.ofHours(1))
             .build();
     }
 
     @Override
-    public RateLimitDecision tryAcquire(String key) {
-        FixedWindow window = windows.get(key, ignored -> new FixedWindow(clock.instant(), properties.window()));
-        return window.tryAcquire(clock.instant(), properties);
+    public RateLimitDecision tryAcquire(String key, RateLimitPolicy policy) {
+        String bucketKey = policy.name() + ":" + key;
+        TokenBucket bucket = buckets.get(bucketKey, ignored -> new TokenBucket(policy.capacity(), clock.instant()));
+        return bucket.tryAcquire(clock.instant(), policy);
     }
 
-    private static final class FixedWindow {
-        private Instant resetAt;
-        private int requestCount;
+    private static final class TokenBucket {
+        private double tokens;
+        private Instant lastRefillAt;
 
-        private FixedWindow(Instant startedAt, Duration duration) {
-            resetAt = startedAt.plus(duration);
+        private TokenBucket(int capacity, Instant createdAt) {
+            tokens = capacity;
+            lastRefillAt = createdAt;
         }
 
-        private synchronized RateLimitDecision tryAcquire(Instant now, RateLimitProperties properties) {
-            if (!now.isBefore(resetAt)) {
-                resetAt = now.plus(properties.window());
-                requestCount = 0;
-            }
+        private synchronized RateLimitDecision tryAcquire(Instant now, RateLimitPolicy policy) {
+            double elapsedNanos = Duration.between(lastRefillAt, now).toNanos();
+            double refillPerNano = (double) policy.capacity() / policy.refillPeriod().toNanos();
+            tokens = Math.min(policy.capacity(), tokens + elapsedNanos * refillPerNano);
+            lastRefillAt = now;
 
-            if (requestCount < properties.maxRequests()) {
-                requestCount++;
+            if (tokens >= 1) {
+                tokens -= 1;
                 return RateLimitDecision.permit();
             }
 
-            long remainingMillis = Duration.between(now, resetAt).toMillis();
-            long retryAfterSeconds = (remainingMillis + 999) / 1_000;
+            long retryAfterNanos = (long) Math.ceil((1 - tokens) / refillPerNano);
+            long retryAfterSeconds = (retryAfterNanos + 999_999_999L) / 1_000_000_000L;
             return RateLimitDecision.reject(retryAfterSeconds);
         }
     }

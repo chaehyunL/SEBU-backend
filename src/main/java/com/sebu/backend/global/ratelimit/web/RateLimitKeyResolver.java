@@ -5,14 +5,22 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @RequiredArgsConstructor
 public class RateLimitKeyResolver {
     private final CurrentUserProvider currentUserProvider;
 
-    public String resolve(HttpServletRequest request) {
+    public ResolvedKeys resolve(HttpServletRequest request) {
         return currentUserProvider.currentUserId()
-            .map(userId -> "USER:" + userId)
-            .orElseGet(() -> "IP:" + request.getRemoteAddr());
+            .map(userId -> new ResolvedKeys(List.of("USER:" + userId), true))
+            .orElseGet(() -> new ResolvedKeys(
+                List.of("SESSION:" + request.getSession(true).getId(), "IP:" + request.getRemoteAddr()),
+                false
+            ));
+    }
+
+    public record ResolvedKeys(List<String> values, boolean authenticated) {
     }
 }

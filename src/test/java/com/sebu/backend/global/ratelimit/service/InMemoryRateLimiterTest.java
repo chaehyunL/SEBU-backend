@@ -1,6 +1,5 @@
 package com.sebu.backend.global.ratelimit.service;
 
-import com.sebu.backend.global.ratelimit.config.RateLimitProperties;
 import com.sebu.backend.global.ratelimit.dto.RateLimitDecision;
 import org.junit.jupiter.api.Test;
 
@@ -14,28 +13,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InMemoryRateLimiterTest {
     @Test
-    void rejectsRequestsOverTheLimitAndResetsAfterTheWindow() {
+    void rejectsRequestsOverCapacityAndRefillsTokensOverTime() {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-09T00:00:00Z"));
-        InMemoryRateLimiter limiter = new InMemoryRateLimiter(new RateLimitProperties(2, Duration.ofMinutes(1)), clock);
+        InMemoryRateLimiter limiter = new InMemoryRateLimiter(clock);
+        RateLimitPolicy policy = new RateLimitPolicy("TEST", 2, Duration.ofMinutes(1));
 
-        assertThat(limiter.tryAcquire("IP:127.0.0.1").allowed()).isTrue();
-        assertThat(limiter.tryAcquire("IP:127.0.0.1").allowed()).isTrue();
-        RateLimitDecision rejected = limiter.tryAcquire("IP:127.0.0.1");
+        assertThat(limiter.tryAcquire("IP:127.0.0.1", policy).allowed()).isTrue();
+        assertThat(limiter.tryAcquire("IP:127.0.0.1", policy).allowed()).isTrue();
+        RateLimitDecision rejected = limiter.tryAcquire("IP:127.0.0.1", policy);
         assertThat(rejected.allowed()).isFalse();
-        assertThat(rejected.retryAfterSeconds()).isEqualTo(60);
+        assertThat(rejected.retryAfterSeconds()).isEqualTo(30);
 
-        clock.advance(Duration.ofMinutes(1));
-        assertThat(limiter.tryAcquire("IP:127.0.0.1").allowed()).isTrue();
+        clock.advance(Duration.ofSeconds(30));
+        assertThat(limiter.tryAcquire("IP:127.0.0.1", policy).allowed()).isTrue();
     }
 
     @Test
     void maintainsIndependentLimitsForDifferentKeys() {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-09T00:00:00Z"));
-        InMemoryRateLimiter limiter = new InMemoryRateLimiter(new RateLimitProperties(1, Duration.ofMinutes(1)), clock);
+        InMemoryRateLimiter limiter = new InMemoryRateLimiter(clock);
+        RateLimitPolicy policy = new RateLimitPolicy("TEST", 1, Duration.ofMinutes(1));
 
-        assertThat(limiter.tryAcquire("USER:1").allowed()).isTrue();
-        assertThat(limiter.tryAcquire("USER:1").allowed()).isFalse();
-        assertThat(limiter.tryAcquire("USER:2").allowed()).isTrue();
+        assertThat(limiter.tryAcquire("USER:1", policy).allowed()).isTrue();
+        assertThat(limiter.tryAcquire("USER:1", policy).allowed()).isFalse();
+        assertThat(limiter.tryAcquire("USER:2", policy).allowed()).isTrue();
     }
 
     private static final class MutableClock extends Clock {

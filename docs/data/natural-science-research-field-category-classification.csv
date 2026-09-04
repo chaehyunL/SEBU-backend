@@ -1,0 +1,167 @@
+research_field_id,research_field_name,department_names,professor_names,laboratory_ids,laboratory_count,current_category_codes,category_code,category_name,mapping_action,classification_basis,confidence
+600,"(2차원 그래핀, MoS2, organic )",물리천문학과,서순애,219,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,그래핀·MoS2 등 2차원 나노 전자소재를 나열한 항목,LOW
+591,2차원 물질 및 자성체,물리천문학과,노화용,215,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,2차원 전자소재와 자성 기능성 소재 연구,MEDIUM
+604,가스 동역학,물리천문학과,오세헌,223,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,기체의 운동과 상호작용을 다루는 기초 물리학,MEDIUM
+619,격자게이지이론,물리천문학과,박성우,229,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,입자물리의 게이지장을 격자로 기술하는 이론,HIGH
+563,고에너지 입자물리 및 핵물리,물리천문학과,김용선,204,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,고에너지 입자와 원자핵을 다루는 기초 물리학,HIGH
+607,고에너지 핵물리학,물리천문학과,오새한슬,224,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,고에너지 영역의 원자핵 기초 물리학,HIGH
+598,고체 물리 실험,물리천문학과,서순애,219,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,고체의 물성을 실험하는 응집물질 기초 물리학,HIGH
+573,공생별,물리천문학과,이희원,209,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,상호작용 쌍성계인 공생별 천체 연구,HIGH
+628,광전소자,물리천문학과,Dastgeer GHULAM,232,1,,PHOTONICS_OPTICS,광학·포토닉스,ADD_MAPPING,빛의 발생·검출·변환에 쓰이는 광전자 소자,HIGH
+592,광학,물리천문학과,최희진,216,1,,PHOTONICS_OPTICS,광학·포토닉스,ADD_MAPPING,빛의 성질과 응용을 다루는 광학 분야,HIGH
+613,광학 분광법,물리천문학과,Dietrich Wulferding,227,1,,PHOTONICS_OPTICS,광학·포토닉스,ADD_MAPPING,빛의 스펙트럼을 이용한 광학 분석 기술,HIGH
+578,구상성단 다중종족,물리천문학과,이재우,211,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,구상성단 내부의 복수 항성종족 천문 연구,HIGH
+567,그래핀,물리천문학과,홍석륜,208,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,대표적인 2차원 나노 전자소재,MEDIUM
+596,나노물리학 이론,물리천문학과,김건,217,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,나노 규모 물질 현상을 다루는 기초 이론물리,HIGH
+599,나노전자 소자,물리천문학과,서순애,219,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,나노 규모 기능성 전자소자 연구,HIGH
+597,"나노전자소재연구실-고체물리실험 (그래핀, 탄소나노튜브, VO2 등의 나노소재 합성 및 응용)",물리천문학과,김근수,218,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,연구실명과 설명이 결합됐지만 나노 전자소재 합성·응용이 중심,LOW
+626,마이크로&나노 소자,물리천문학과,Dastgeer GHULAM,232,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,마이크로·나노 규모 기능성 전자소자,MEDIUM
+625,반도체 재료,물리천문학과,Dastgeer GHULAM,232,1,,SEMICONDUCTOR_HW,반도체·집적회로·컴퓨팅하드웨어,ADD_MAPPING,반도체 소자 제작에 쓰이는 재료 연구,HIGH
+570,반도체 표면,물리천문학과,홍석륜,208,1,,SEMICONDUCTOR_HW,반도체·집적회로·컴퓨팅하드웨어,ADD_MAPPING,반도체 표면의 물성과 공정 관련 연구,HIGH
+585,성간물질,물리천문학과,김성은,214,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,별 사이 공간의 가스와 먼지를 다루는 천문학,HIGH
+629,센서,물리천문학과,Dastgeer GHULAM,232,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,구체적 센서 종류가 없는 기능성 전자소자 항목,LOW
+588,수냐예프-젤도비치 효과,물리천문학과,김성은,214,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,우주배경복사와 은하단의 상호작용을 다루는 우주론,HIGH
+590,스핀트로닉스 및 스핀칼로리트로닉스,물리천문학과,노화용,215,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,전자 스핀과 열을 활용하는 기능성 전자소자 분야,HIGH
+594,시감 특성,물리천문학과,최희진,216,1,,HCI_XR,HCI·XR·인터랙티브미디어,ADD_MAPPING,사람의 시각 지각 특성으로 해석되는 인간중심 항목,LOW
+603,실험입자물리,물리천문학과,Hyunsoo Kim,222,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,기본 입자를 실험으로 연구하는 고에너지 물리학,HIGH
+605,암흑 물질,물리천문학과,오세헌,223,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,우주론과 입자물리의 암흑물질 연구,HIGH
+611,양자 소자,물리천문학과,김경호,226,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자 상태와 현상을 활용하는 소자 기술,HIGH
+608,양자 정보 기술 실험,물리천문학과,김경호,226,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자정보 기술의 실험적 구현,HIGH
+571,양자광원,물리천문학과,홍석륜,208,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자정보·양자광학용 비고전 광원,HIGH
+612,양자물질,물리천문학과,Dietrich Wulferding,227,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자 효과가 지배하는 물질과 양자기술 연구,HIGH
+615,양자오류정정,물리천문학과,권혁건,228,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자정보 처리의 오류 검출·복구 기술,HIGH
+614,양자정보이론-양자센싱,물리천문학과,권혁건,228,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자정보 이론과 양자센싱 기술,HIGH
+616,양자학습이론,물리천문학과,권혁건,228,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자계의 학습과 양자정보 이론,HIGH
+586,외부은하,물리천문학과,"김성은, 오세헌","214,223",2,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,우리은하 밖의 은하를 연구하는 은하천문학,HIGH
+601,우주 거대 구조,물리천문학과,Graziano Rossi,221,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,우주의 대규모 물질 분포와 구조 형성 연구,HIGH
+621,우주 거대구조,물리천문학과,Benjamin Pierre Emmanuel L’HUILLIER,231,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,우주의 대규모 물질 분포와 구조 형성 연구,HIGH
+583,우주론,물리천문학과,"Benjamin Pierre Emmanuel L’HUILLIER, Graziano Rossi, 채규현","212,221,231",3,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,우주의 기원·진화·구조를 연구하는 우주론,HIGH
+692,우주론적 QUOKKAS 퀘이사 관측,물리천문학과,HODGSON JEFFREY ADAM,230,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,퀘이사를 이용한 관측 우주론 연구,HIGH
+582,은하구조 및 역학,물리천문학과,채규현,212,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,은하의 구조와 중력 동역학을 다루는 천문학,HIGH
+622,은하의 형성 및 진화,물리천문학과,Benjamin Pierre Emmanuel L’HUILLIER,231,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,은하 형성과 시간에 따른 진화 연구,HIGH
+579,은하의 형성과 진화,물리천문학과,이재우,211,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,은하 형성과 시간에 따른 진화 연구,HIGH
+624,응집물질 물리학,물리천문학과,Dastgeer GHULAM,232,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,고체·액체 등 다입자 물질의 기초 물리학,HIGH
+564,"응집물질물리 이론(나노 자성체, 초전도체)",물리천문학과,김광희,205,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,나노 자성체와 초전도체를 다루는 응집물질 이론,HIGH
+595,응집물질물리학 이론,물리천문학과,김건,217,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,응집된 다입자 물질의 이론 기초 물리학,HIGH
+584,이론 생물물리학 연체계물리학 통계물리,물리천문학과,이남경,213,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,생물·연성계 현상을 통계물리로 다루는 기초 물리학,MEDIUM
+617,입자물리,물리천문학과,박성우,229,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,기본 입자와 상호작용을 다루는 기초 물리학,HIGH
+565,입자물리 이론/강한상호작용/격자게이지 이론,물리천문학과,김세용,206,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,강한 상호작용과 격자 게이지를 다루는 입자물리 이론,HIGH
+575,"저차원계 응집물질물리(그래핀, 위상절연체)",물리천문학과,천승현,210,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,그래핀·위상절연체의 저차원 응집물질 기초 물리,HIGH
+589,저차원계에서의 전자수송 현상,물리천문학과,노화용,215,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,저차원 응집물질의 전자수송 기초 현상,LOW
+606,전파 천문학,물리천문학과,오세헌,223,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,전파 대역으로 천체를 관측하는 천문학,HIGH
+587,전파천문학,물리천문학과,김성은,214,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,전파 대역으로 천체를 관측하는 천문학,HIGH
+581,중력렌즈,물리천문학과,채규현,212,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,중력에 의한 빛의 굴절을 이용하는 천체물리 연구,HIGH
+623,중력파,물리천문학과,Benjamin Pierre Emmanuel L’HUILLIER,231,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,시공간의 파동과 그 천체물리적 발생원 연구,HIGH
+602,중성미자,물리천문학과,Graziano Rossi,221,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,기본 입자인 중성미자의 입자·우주물리 연구,HIGH
+566,진화 게임 이론 통계 물리학 복잡계 준결정과 타일링,물리천문학과,정형채,207,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,복잡계·준결정 현상을 통계물리와 수리모형으로 연구,MEDIUM
+572,천체분광학과 복사 전달 활동성 은하,물리천문학과,이희원,209,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,분광·복사전달 기법을 활동은하에 적용하는 천문학,HIGH
+690,초장기선 전파간섭계(VLBI),물리천문학과,HODGSON JEFFREY ADAM,230,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,천체 전파 관측용 초장기선 간섭계 기술,HIGH
+610,초전도 양자 시스템,물리천문학과,김경호,226,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,초전도체로 구현하는 양자정보 시스템,HIGH
+609,초전도 양자 컴퓨팅,물리천문학과,김경호,226,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,초전도 큐비트 기반 양자컴퓨팅,HIGH
+580,측광 필터 개발 (JWL 측광계),물리천문학과,이재우,211,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,항성 관측용 JWL 측광계 필터 개발로 해석,LOW
+627,포토디텍터,물리천문학과,Dastgeer GHULAM,232,1,,PHOTONICS_OPTICS,광학·포토닉스,ADD_MAPPING,빛을 전기 신호로 검출하는 광검출 소자,HIGH
+577,항성 분광 및 측광학,물리천문학과,이재우,211,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,분광·측광 방법으로 항성을 연구하는 천문학,HIGH
+576,항성종족론,물리천문학과,이재우,211,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,별 집단의 특성과 진화를 연구하는 항성천문학,HIGH
+618,핵물리,물리천문학과,박성우,229,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,원자핵의 구조와 상호작용을 다루는 기초 물리학,HIGH
+574,행성상성운의 방출선과 산란선 형성 우주 재이온화 라이먼 방출 은하,물리천문학과,이희원,209,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,행성상성운·재이온화·라이먼 방출은하를 다루는 천체물리,HIGH
+620,허블도 기반 거리-적색편이 관계 측정,물리천문학과,HODGSON JEFFREY ADAM,230,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,거리와 적색편이 관계를 측정하는 관측 우주론,HIGH
+691,활동은하핵 및 초대질량 블랙홀 관측,물리천문학과,HODGSON JEFFREY ADAM,230,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,활동은하핵과 초대질량 블랙홀의 관측 천문학,HIGH
+593,AR/VR/3D 디스플레이,물리천문학과,최희진,216,1,,HCI_XR,HCI·XR·인터랙티브미디어,ADD_MAPPING,증강·가상현실과 3D 인터랙티브 디스플레이 응용,HIGH
+568,hBN,물리천문학과,홍석륜,208,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,hBN으로 해석되는 2차원 나노 전자소재 항목,LOW
+693,KVN·Mopra 기반 초장기선 전파간섭계 관측,물리천문학과,HODGSON JEFFREY ADAM,230,1,,PHYSICS_ASTRONOMY,물리·천문,ADD_MAPPING,전파망원경 기반 초장기선 천문 관측,HIGH
+631,p-n 접합,물리천문학과,Dastgeer GHULAM,232,1,,SEMICONDUCTOR_HW,반도체·집적회로·컴퓨팅하드웨어,ADD_MAPPING,반도체 소자의 기본 접합 구조,HIGH
+569,TMD 등 2차원 물질 및 탄소나노튜브,물리천문학과,홍석륜,208,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,TMD·탄소나노튜브 기반 나노 전자소재 연구,HIGH
+630,van der Waals 이종구조접합,물리천문학과,Dastgeer GHULAM,232,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,반데르발스 나노 이종접합 기반 기능성 전자소자,MEDIUM
+537,가사이드 이론,수학통계학과,이언경,192,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,땋임군과 기하군론에 연결되는 대수·기하학 이론,HIGH
+538,기하군론,수학통계학과,이언경,192,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,군을 기하학적으로 연구하는 순수수학 분야,HIGH
+561,기하위상,수학통계학과,변태창,203,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,기하학과 위상수학을 결합한 순수수학 분야,HIGH
+553,다중척도방법,수학통계학과,김동호,198,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,수학통계학과의 수치·통계적 다중척도 방법으로 분류했으나 이름만으로 세부 응용을 확정하기 어려움,LOW
+546,대수적 정수론,수학통계학과,"오장헌, 유호석","196,199",2,,MATH_STATISTICS,수학·통계,ADD_MAPPING,대수적 구조를 이용해 정수를 연구하는 순수수학 분야,HIGH
+536,땋임군,수학통계학과,이언경,192,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,위상수학과 군론에 속하는 수학적 구조,HIGH
+560,리군론,수학통계학과,변태창,203,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,연속 대칭을 다루는 대수·기하학 분야,HIGH
+543,리대수,수학통계학과,문동호,195,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,리군과 연계된 대수학적 구조를 연구하는 순수수학 분야,HIGH
+559,리만기하,수학통계학과,변태창,203,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,리만 다양체와 곡률을 다루는 미분기하학 분야,HIGH
+555,머신러닝 이론,수학통계학과,박예찬,200,1,,AI_ML,인공지능·기계학습,ADD_MAPPING,머신러닝 모델과 학습 원리를 연구하는 인공지능 분야,HIGH
+554,비모수회귀분석,수학통계학과,김동호,198,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,분포 형태를 가정하지 않는 통계적 회귀 방법론,HIGH
+539,생물통계학,수학통계학과,이승연,193,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,생명·보건 연구에 통계 방법을 적용하는 분야로 응용 도메인을 우선함,HIGH
+540,생존분석,수학통계학과,이승연,193,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,같은 연구실의 생물통계학·유전체 연구 문맥에서 생존시간을 분석하는 보건 통계 방법,MEDIUM
+550,선형대수학 및 머신러닝,수학통계학과,하길찬,197,1,,AI_ML,인공지능·기계학습,ADD_MAPPING,선형대수학을 머신러닝에 적용하는 복합 분야로 명시된 응용 대상을 우선함,MEDIUM
+542,수치해석,수학통계학과,차영준,194,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,수학 문제의 근사해를 계산하는 응용수학 분야,HIGH
+552,수학교육론,수학통계학과,하길찬,197,1,,POLICY_MANAGEMENT,경영·정책·법·교육,ADD_MAPPING,수학 교수·학습을 연구하는 교육 분야로 응용 도메인을 우선함,HIGH
+551,암호론,수학통계학과,하길찬,197,1,,SECURITY_CRYPTO,정보보안·암호,ADD_MAPPING,암호의 수학적 원리와 체계를 연구하는 정보보안 분야,HIGH
+548,양자정보 및 양자암호,수학통계학과,하길찬,197,1,,QUANTUM_TECH,양자정보·양자기술,ADD_MAPPING,양자정보 처리와 양자암호를 직접 다루는 양자기술 분야,HIGH
+541,유전체 연구,수학통계학과,이승연,193,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,같은 연구실의 생물통계학·생존분석 문맥상 유전체를 genomics로 해석했으나 유전체가 dielectric을 뜻할 수도 있음,LOW
+520,이미지 처리,수학통계학과,박예찬,200,1,SIGNAL_MEDIA,SIGNAL_MEDIA,신호·영상·미디어처리,KEEP_EXISTING,기존 분류를 유지하며 디지털 영상 신호를 처리하는 분야,HIGH
+547,이와사와 이론,수학통계학과,오장헌,196,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,대수적 정수론과 연계된 순수수학 이론,HIGH
+556,인공지능수학,수학통계학과,박예찬,200,1,,AI_ML,인공지능·기계학습,ADD_MAPPING,인공지능 모델과 학습을 위한 수학적 방법을 연구하는 분야,HIGH
+558,작용소론,수학통계학과,이지은,201,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,함수공간 위 작용소를 다루는 함수해석학 분야,HIGH
+545,조합론,수학통계학과,문동호,195,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,이산 구조와 경우의 수를 연구하는 순수수학 분야,HIGH
+562,퍼지수학,수학통계학과,변태창,203,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,퍼지 집합과 퍼지 논리의 수학적 구조를 연구하는 분야,HIGH
+544,표현론,수학통계학과,문동호,195,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,군과 대수를 선형변환으로 표현하는 대수학 분야,HIGH
+549,함수해석학,수학통계학과,"김주명, 하길찬","197,202",2,,MATH_STATISTICS,수학·통계,ADD_MAPPING,함수공간과 작용소를 연구하는 해석학 분야,HIGH
+557,해석학,수학통계학과,이지은,201,1,,MATH_STATISTICS,수학·통계,ADD_MAPPING,극한·연속·미분·적분과 함수공간을 다루는 순수수학 분야,HIGH
+684,1,화학과,Suguna Perumal,245,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,"숫자만 남은 비정상 이름으로, 화학과 문맥에 따라 일반 화학·재료 분야로 임시 분류",LOW
+663,4D 프린팅용 소재,화학과,김용석,241,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,4D 프린팅에 사용하는 기능성 소재 개발,HIGH
+683,강유전 소재,화학과,박찬호,244,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,메모리·센서 등 기능성 전자소자에 쓰이는 강유전 소재,MEDIUM
+655,계산/전산 화학,화학과,장순민,240,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,계산 방법을 이용한 화학 구조·반응·물성 연구,HIGH
+677,고분자 가공,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,고분자 재료의 제조·가공 연구,HIGH
+669,고분자 구조-물성,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,고분자 구조와 재료 물성의 상관관계 연구,HIGH
+646,고분자 기반 기체 분리막의 개발 및 성능 평가 연구,화학과,원종옥,238,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,고분자 분리막 소재의 개발과 성능 평가,HIGH
+658,고분자 소재 합성,화학과,김용석,241,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,고분자 재료의 화학적 합성,HIGH
+675,고분자 열역학,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,고분자 물질의 열역학적 특성 연구,HIGH
+640,고분자 재활용 및 분석,화학과,채영기,237,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,고분자 폐기물 재활용이라는 환경 응용이 핵심,HIGH
+687,고분자 화학 (고분자 합성) 4,화학과,Suguna Perumal,245,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,고분자 합성 연구이나 끝의 숫자 4는 추출 잔여값으로 보임,LOW
+652,고분자복합재료,화학과,최성신,239,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,고분자 기반 복합재료 연구,HIGH
+695,광결정 디바이스(화학 센서·반사형 디스플레이·레이저),화학과,이원목,233,1,,PHOTONICS_OPTICS,광학·포토닉스,ADD_MAPPING,광결정 구조를 이용한 반사형 디스플레이·레이저 등 광학 소자 응용,HIGH
+697,금속산화물 나노입자(titania·zirconia·silica),화학과,이원목,233,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,금속산화물 기반 나노소재 합성·특성 연구,HIGH
+659,기능성 고분자,화학과,김용석,241,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,특정 기능을 갖도록 설계한 고분자 소재,HIGH
+676,기능성 고분자 복합소재,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,기능성 고분자 기반 복합재료,HIGH
+682,나노 반도체 소재,화학과,박찬호,244,1,,SEMICONDUCTOR_HW,반도체·집적회로·컴퓨팅하드웨어,ADD_MAPPING,나노 규모 반도체 재료 연구,HIGH
+689,"나노소재 (금, 은, 백금, 하이브리드 나노입자 및 양자점의 제조 및 특성 분석)",화학과,Suguna Perumal,245,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,금속·하이브리드 나노입자와 양자점의 제조·재료 분석,HIGH
+685,다양한 응용 분야를 위한 그래핀-고분자 복합재료 개발 2,화학과,Suguna Perumal,245,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,그래핀-고분자 복합재료 개발이나 끝의 숫자 2는 추출 잔여값으로 보임,LOW
+637,단백질-단백질 상호작용 연구,화학과,채영기,237,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,생체 단백질 간 상호작용을 다루는 바이오 연구,HIGH
+636,단백질-리간드 상호작용 방법론,화학과,채영기,237,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,단백질과 리간드 결합을 다루는 생명·의약 연구,HIGH
+635,단백질의 구조 및 기능 연구,화학과,채영기,237,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,단백질 구조와 생물학적 기능 연구,HIGH
+639,대사물질 프로파일링,화학과,채영기,237,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,생체 대사물질을 분석하는 바이오·의료 연구,HIGH
+643,레독스 플로우 배터리 및 이차전지용 고분자 전해질의 설계,화학과,원종옥,238,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,배터리와 이차전지용 전해질이라는 에너지 저장 응용,HIGH
+654,물리화학,화학과,장순민,240,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,화학 물질과 반응의 물리적 원리를 다루는 기초 화학,HIGH
+679,바이오 센서,화학과,박찬호,244,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,센서 기술보다 생체·의료 응용 분야를 우선 분류,HIGH
+696,바이오 소재(Organoid·Embolic materials·GelMA),화학과,이원목,233,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,오가노이드·색전 소재·GelMA 등 바이오의료 소재,HIGH
+678,바이오메디컬 소재,화학과,박찬호,244,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,의료·생체 적용을 목적으로 하는 소재,HIGH
+656,분자동력학,화학과,장순민,240,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,분자 구조와 운동을 모사하는 계산화학 방법,MEDIUM
+673,비트리머,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,동적 공유결합 기반 고분자 재료 연구,HIGH
+648,빌량분석법,화학과,최성신,239,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,분석화학 방법명으로 보이나 오탈자가 있어 정확한 원문 확인 필요,LOW
+674,상전이 거동,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,물질의 상전이와 재료 거동 연구,HIGH
+657,생물리화학,화학과,장순민,240,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,생체분자의 물리화학적 특성을 다루는 바이오 연구,HIGH
+681,생분해 에너지 소재,화학과,박찬호,244,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,생분해성과 에너지 기능을 결합한 친환경 에너지 소재,HIGH
+632,생유기화학 펩타이드 및 항암제 합성 항체를 이용한 항암제 전달,화학과,임동열,235,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,항암제 합성·전달과 펩타이드를 다루는 의약·바이오 연구,HIGH
+680,생체 흡수성 전자 소재,화학과,박찬호,244,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,전자소재 기술보다 생체 흡수성 의료 응용을 우선 분류,HIGH
+647,소재특성분석,화학과,최성신,239,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,재료의 구조·물성을 평가하는 일반 소재 분석,MEDIUM
+668,실시간 복합분석,화학과,한상돈,242,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,대상과 응용 분야가 명시되지 않은 화학·재료 복합분석 방법,LOW
+670,엑스선 산란,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,물질·재료 구조를 분석하는 엑스선 산란 기법,HIGH
+641,연료전지,화학과,원종옥,238,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,전기화학적 에너지 변환 장치 연구,HIGH
+698,연료전지(DMFC·PEMFC),화학과,이원목,233,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,DMFC·PEMFC 연료전지 기반 에너지 변환 연구,HIGH
+650,열분석법,화학과,최성신,239,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,물질의 열적 특성을 측정하는 화학·재료 분석법,HIGH
+651,열분해,화학과,최성신,239,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,열에 의한 화학적 분해 반응 연구,HIGH
+686,원자력 현미경(AFM)을 이용한 접착력 연구 3,화학과,Suguna Perumal,245,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,AFM 기반 재료 표면·접착력 분석이나 끝의 숫자 3은 추출 잔여값으로 보임,LOW
+665,이차전지,화학과,한상돈,242,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,충전식 전지 기반 에너지 저장 연구,HIGH
+662,자동차용 소재,화학과,김용석,241,1,,INDUSTRIAL_MOBILITY,산업·모빌리티·스마트인프라,ADD_MAPPING,재료 자체보다 자동차·모빌리티 적용 분야를 우선 분류,HIGH
+638,재조합 단백질 생산,화학과,채영기,237,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,생명공학 기반 단백질 생산 연구,HIGH
+667,전극/전해질 계면,화학과,한상돈,242,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,전지·전기화학 에너지 장치의 핵심 계면 연구,HIGH
+664,전기화학,화학과,한상돈,242,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,응용 대상이 특정되지 않은 일반 전기화학 연구,HIGH
+666,전기화학적 분석 및 진단,화학과,한상돈,242,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,응용 대상이 특정되지 않은 전기화학 분석·진단 방법,MEDIUM
+660,전자정보용 화학소재,화학과,김용석,241,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,전자·정보 소자에 적용되는 기능성 화학소재,HIGH
+645,천연 우루시올의 화학 구조–물성 상관관계 연구,화학과,원종옥,238,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,천연 우루시올의 화학 구조와 재료 물성 관계 연구,HIGH
+672,친환경 고분자,화학과,박성민,243,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,환경 부담을 줄이는 친환경 고분자 소재 연구,HIGH
+694,콜로이드 합성 및 자기조립,화학과,이원목,233,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,콜로이드 소재의 합성과 자기조립 연구,HIGH
+649,크로마토그래피,화학과,최성신,239,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,화학 혼합물을 분리·분석하는 크로마토그래피 기법,HIGH
+700,크로마토그래피 분리분석,화학과,이원목,233,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,크로마토그래피 기반 화학 분리·분석,HIGH
+642,태양전지,화학과,원종옥,238,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,태양광 기반 신재생에너지 변환 연구,HIGH
+699,태양전지(DSSC·OPV),화학과,이원목,233,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,DSSC·OPV 태양전지 기반 신재생에너지 연구,HIGH
+688,폐수 중금속 이온 흡착 및 약물 전달을 위한 젤라틴 기반 하이드로겔 입자 제조 5,화학과,Suguna Perumal,245,1,,BIOMED_HEALTH,바이오·의료·헬스케어,ADD_MAPPING,폐수 처리와 약물 전달이 함께 있어 경계가 모호하나 젤라틴 하이드로겔의 약물 전달 응용을 우선했고 끝의 숫자 5는 추출 잔여값으로 보임,LOW
+661,하이브리드 소재,화학과,김용석,241,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,서로 다른 성분을 결합한 복합·하이브리드 재료 연구,HIGH
+644,합성 및 특성 연구,화학과,원종옥,238,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,대상이 명시되지 않은 일반 화학 합성·특성 분석,LOW
+671,화학소재 분석,화학과,박성민,243,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,화학소재의 조성·구조·물성 분석,HIGH
+653,환경분석,화학과,최성신,239,1,,ENERGY_ENVIRONMENT,에너지·환경·기후,ADD_MAPPING,환경 시료와 오염물질 분석을 다루는 환경 응용,HIGH
+633,LCD colorant materials,화학과,윤천,236,1,,ELECTRONIC_DEVICES,전자소자·센서·나노소재,ADD_MAPPING,LCD 디스플레이용 전자·광학 소자 소재,HIGH
+634,NMR 분광학,화학과,채영기,237,1,,CHEMISTRY_MATERIALS,화학·소재,ADD_MAPPING,화합물 구조를 분석하는 화학 분광학 방법,HIGH

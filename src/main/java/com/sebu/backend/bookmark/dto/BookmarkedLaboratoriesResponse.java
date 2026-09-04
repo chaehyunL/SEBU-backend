@@ -4,9 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record BookmarkedLaboratoriesResponse(
-        List<BookmarkedLaboratory> items,
-        String nextCursor,
-        boolean hasNext
+        List<BookmarkedLaboratory> items
 ) {
     public record BookmarkedLaboratory(
             LocalDateTime bookmarkedAt,

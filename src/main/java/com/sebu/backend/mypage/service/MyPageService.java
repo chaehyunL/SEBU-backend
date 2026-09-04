@@ -37,9 +37,7 @@ public class MyPageService {
                 bookmarkRepository.countByUser_Id(userId);
 
         List<Bookmark> bookmarks =
-                bookmarkRepository.findTop5ByUser_IdOrderByCreatedAtDesc(userId);
-
-        boolean hasNext = bookmarkedLaboratoryCount > 5;
+                bookmarkRepository.findBookmarkedLaboratories(userId);
 
         List<Long> laboratoryIds = bookmarks.stream()
                 .map(bookmark -> bookmark.getLaboratory().getId())
@@ -78,12 +76,10 @@ public class MyPageService {
                 profile,
                 summary,
                 new MyPageResponse.BookmarkedLaboratories(
-                        bookmarkedLaboratories,
-                        hasNext
+                        bookmarkedLaboratories
                 )
         );
     }
-
     private MyPageResponse.Profile toProfile(AppUser user) {
         MyPageResponse.DepartmentSummary department = null;
 

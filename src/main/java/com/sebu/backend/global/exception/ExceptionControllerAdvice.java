@@ -1,8 +1,6 @@
 package com.sebu.backend.global.exception;
 
 import com.sebu.backend.auth.exception.AccessTokenInvalidException;
-import com.sebu.backend.bookmark.exception.InvalidCursorException;
-import com.sebu.backend.bookmark.exception.InvalidSizeException;
 import com.sebu.backend.global.response.ApiResponse;
 import com.sebu.backend.laboratory.exception.InvalidLaboratoryPageException;
 import com.sebu.backend.laboratory.exception.InvalidLaboratorySizeException;
@@ -230,30 +228,6 @@ public class ExceptionControllerAdvice {
                                 exception.userMessage()
                         )),
                         null
-                ));
-    }
-
-    @ExceptionHandler(InvalidCursorException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidCursor(
-            InvalidCursorException exception
-    ) {
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.failure(
-                        "INVALID_CURSOR",
-                        "유효하지 않은 커서입니다."
-                ));
-    }
-
-    @ExceptionHandler(InvalidSizeException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidSize(
-            InvalidSizeException exception
-    ) {
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.failure(
-                        "INVALID_SIZE",
-                        "조회 개수가 올바르지 않습니다."
                 ));
     }
 

@@ -17,7 +17,6 @@ import com.sebu.backend.professor.domain.Professor;
 import com.sebu.backend.professor.repository.ProfessorRepository;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.repository.AppUserRepository;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -45,9 +44,6 @@ public class BookmarkServiceTest {
     LaboratoryRepository laboratoryRepository;
     @Autowired
     BookmarkRepository bookmarkRepository;
-    @Autowired
-    EntityManager entityManager;
-
     @Test
     void softDeletedLaboratoryIsNotBookmarkable() {
         College college = collegeRepository.save(new College("공과대학"));
@@ -73,19 +69,13 @@ public class BookmarkServiceTest {
         );
 
         BookmarkedLaboratoriesResponse result =
-                bookmarkService.getBookmarkedLaboratories(
-                        user.getId(),
-                        null,
-                        20
-                );
+                bookmarkService.getBookmarkedLaboratories(user.getId());
 
         assertThat(result.items()).isEmpty();
-        assertThat(result.hasNext()).isFalse();
-        assertThat(result.nextCursor()).isNull();
     }
 
     @Test
-    void 요청한_size보다_북마크가_많으면_hasNext가_true이고_nextCursor를_반환한다() {
+    void 북마크한_연구실을_전체_반환한다() {
 
         // given
         AppUser user = appUserRepository.save(
@@ -140,98 +130,10 @@ public class BookmarkServiceTest {
 
         // when
         BookmarkedLaboratoriesResponse result =
-                bookmarkService.getBookmarkedLaboratories(
-                        user.getId(),
-                        null,
-                        2
-                );
+                bookmarkService.getBookmarkedLaboratories(user.getId());
 
         // then
-        assertThat(result.items()).hasSize(2);
-        assertThat(result.hasNext()).isTrue();
-        assertThat(result.nextCursor()).isNotNull();
-    }
-
-    @Test
-    void nextCursor로_다음_페이지를_조회할_수_있다() {
-        // given
-        AppUser user = appUserRepository.save(
-                new AppUser("cursor-test@example.com")
-        );
-
-        College college = collegeRepository.save(
-                new College("소프트웨어융합대학")
-        );
-
-        Department department = departmentRepository.save(
-                new Department(college, "컴퓨터공학과")
-        );
-
-        Professor professor = professorRepository.save(
-                new Professor(department, "홍교수", null)
-        );
-
-        Laboratory lab1 = laboratoryRepository.save(
-                new Laboratory(
-                        professor,
-                        department,
-                        "AI 연구실",
-                        null,
-                        RecruitmentStatus.RECRUITING
-                )
-        );
-
-        Laboratory lab2 = laboratoryRepository.save(
-                new Laboratory(
-                        professor,
-                        department,
-                        "데이터 연구실",
-                        null,
-                        RecruitmentStatus.RECRUITING
-                )
-        );
-
-        Laboratory lab3 = laboratoryRepository.save(
-                new Laboratory(
-                        professor,
-                        department,
-                        "비전 연구실",
-                        null,
-                        RecruitmentStatus.RECRUITING
-                )
-        );
-
-        bookmarkRepository.save(new Bookmark(user, lab1));
-        bookmarkRepository.save(new Bookmark(user, lab2));
-        bookmarkRepository.save(new Bookmark(user, lab3));
-
-        entityManager.flush();
-        entityManager.clear();
-        // 첫 페이지
-        BookmarkedLaboratoriesResponse firstPage =
-                bookmarkService.getBookmarkedLaboratories(
-                        user.getId(),
-                        null,
-                        2
-                );
-
-        // when - 첫 페이지에서 받은 cursor로 다음 페이지 조회
-        BookmarkedLaboratoriesResponse secondPage =
-                bookmarkService.getBookmarkedLaboratories(
-                        user.getId(),
-                        firstPage.nextCursor(),
-                        2
-                );
-
-        // then
-        assertThat(firstPage.items()).hasSize(2);
-
-        assertThat(secondPage.items()).hasSize(1);
-        assertThat(secondPage.hasNext()).isFalse();
-        assertThat(secondPage.nextCursor()).isNull();
-
-        assertThat(secondPage.items())
-                .doesNotContainAnyElementsOf(firstPage.items());
+        assertThat(result.items()).hasSize(3);
     }
 
     @Test

@@ -28,8 +28,7 @@ public record MyPageResponse(
     }
 
     public record BookmarkedLaboratories(
-            List<BookmarkedLaboratory> items,
-            boolean hasNext
+            List<BookmarkedLaboratory> items
     ) {
     }
 

@@ -21,11 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -87,7 +87,7 @@ public class MyPageControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.bookmarkedLaboratories.items")
                         .isEmpty())
                 .andExpect(jsonPath("$.data.bookmarkedLaboratories.hasNext")
-                        .value(false));
+                        .doesNotExist());
     }
 
     @Test
@@ -465,43 +465,6 @@ public class MyPageControllerIntegrationTest {
         assertThat(savedUser.getProfileUpdatedAt()).isNull();
     }
 
-    @Test
-    void 북마크_목록_조회시_size가_유효하지_않으면_400을_반환한다() throws Exception {
-        AppUser user = appUserRepository.save(
-                new AppUser("invalid-size@example.com")
-        );
-
-        mockMvc.perform(
-                        get("/api/v1/users/me/bookmarked-laboratories")
-                                .with(jwt().jwt(jwt -> jwt
-                                        .subject(user.getId().toString())
-                                        .claim("role", "USER")
-                                ))
-                                .param("size", "51")
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("INVALID_SIZE"));
-    }
-
-    @Test
-    void 북마크_목록_조회시_cursor가_유효하지_않으면_400을_반환한다() throws Exception {
-        AppUser user = appUserRepository.save(
-                new AppUser("invalid-cursor@example.com")
-        );
-
-        mockMvc.perform(
-                        get("/api/v1/users/me/bookmarked-laboratories")
-                                .with(jwt().jwt(jwt -> jwt
-                                        .subject(user.getId().toString())
-                                        .claim("role", "USER")
-                                ))
-                                .param("cursor", "invalid-cursor")
-                )
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("INVALID_CURSOR"));
-    }
     @Test
     void 인증되지_않은_사용자는_북마크_목록을_조회할_수_없다() throws Exception {
         mockMvc.perform(

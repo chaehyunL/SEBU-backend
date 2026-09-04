@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(
@@ -35,19 +34,12 @@ public class BookmarkController {
     @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/api/v1/users/me/bookmarked-laboratories")
     public ResponseEntity<ApiResponse<BookmarkedLaboratoriesResponse>>
-    getBookmarkedLaboratories(
-            @RequestParam(required = false) String cursor,
-            @RequestParam(defaultValue = "20") int size
-    ) {
+    getBookmarkedLaboratories() {
         Long userId = currentUserProvider.currentUserId()
                 .orElseThrow(AccessTokenInvalidException::new);
 
         BookmarkedLaboratoriesResponse response =
-                bookmarkService.getBookmarkedLaboratories(
-                        userId,
-                        cursor,
-                        size
-                );
+                bookmarkService.getBookmarkedLaboratories(userId);
 
         return ResponseEntity.ok()
                 .header("Cache-Control", "private, no-store")

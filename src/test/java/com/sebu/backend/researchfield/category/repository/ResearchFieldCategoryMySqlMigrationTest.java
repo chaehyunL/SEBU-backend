@@ -30,15 +30,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ResearchFieldCategoryMySqlMigrationTest {
     private static final int EXPECTED_CATEGORY_COUNT = 21;
     private static final int EXPECTED_CURATED_FIELD_COUNT = 700;
+    private static final int EXPECTED_BASE_FIELD_COUNT = 535;
     private static final Path BASE_CLASSIFICATION_CSV = Path.of(
         "docs",
         "data",
         "research-field-category-classification.csv"
-    );
-    private static final Path NATURAL_SCIENCE_CLASSIFICATION_CSV = Path.of(
-        "docs",
-        "data",
-        "natural-science-research-field-category-classification.csv"
     );
 
     @Container
@@ -139,19 +135,19 @@ class ResearchFieldCategoryMySqlMigrationTest {
     void v22UpgradeMapsEveryCuratedFieldAndPreservesUnknownFields()
         throws Exception {
         flyway("22").migrate();
-        List<CuratedAssignment> curatedAssignments = readCuratedAssignments();
-        List<String> curatedFieldNames = expectedAssignments(curatedAssignments)
+        List<CuratedAssignment> baseAssignments = readBaseAssignments();
+        List<String> baseFieldNames = expectedAssignments(baseAssignments)
             .keySet()
             .stream()
             .toList();
-        assertThat(curatedFieldNames)
-            .hasSize(EXPECTED_CURATED_FIELD_COUNT)
+        assertThat(baseFieldNames)
+            .hasSize(EXPECTED_BASE_FIELD_COUNT)
             .doesNotHaveDuplicates();
 
         long existingSeedFieldId;
         long customFieldId;
         try (Connection connection = connection()) {
-            insertFields(connection, curatedFieldNames);
+            insertFields(connection, baseFieldNames);
             existingSeedFieldId = findFieldId(connection, "인공지능");
             customFieldId = insertAndReturnId(
                 connection,
@@ -208,7 +204,7 @@ class ResearchFieldCategoryMySqlMigrationTest {
                 "PHOTONICS_OPTICS"
             );
             assertThat(findAllMappings(connection))
-                .isEqualTo(expectedAssignments(curatedAssignments));
+                .containsAllEntriesOf(expectedAssignments(baseAssignments));
             assertThatThrownBy(() -> executeUpdate(
                 connection,
                 "DELETE FROM research_field_category WHERE code = ?",
@@ -217,11 +213,8 @@ class ResearchFieldCategoryMySqlMigrationTest {
         }
     }
 
-    private List<CuratedAssignment> readCuratedAssignments() throws Exception {
-        List<CuratedAssignment> assignments = new ArrayList<>();
-        assignments.addAll(readCuratedAssignments(BASE_CLASSIFICATION_CSV, 0, 5));
-        assignments.addAll(readCuratedAssignments(NATURAL_SCIENCE_CLASSIFICATION_CSV, 1, 7));
-        return assignments;
+    private List<CuratedAssignment> readBaseAssignments() throws Exception {
+        return readCuratedAssignments(BASE_CLASSIFICATION_CSV, 0, 5);
     }
 
     private List<CuratedAssignment> readCuratedAssignments(

@@ -28,12 +28,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers(disabledWithoutDocker = true)
 class ResearchFieldCategoryMySqlMigrationTest {
-    private static final int EXPECTED_CATEGORY_COUNT = 18;
-    private static final int EXPECTED_CURATED_FIELD_COUNT = 535;
-    private static final Path CLASSIFICATION_CSV = Path.of(
+    private static final int EXPECTED_CATEGORY_COUNT = 21;
+    private static final int EXPECTED_CURATED_FIELD_COUNT = 700;
+    private static final Path BASE_CLASSIFICATION_CSV = Path.of(
         "docs",
         "data",
         "research-field-category-classification.csv"
+    );
+    private static final Path NATURAL_SCIENCE_CLASSIFICATION_CSV = Path.of(
+        "docs",
+        "data",
+        "natural-science-research-field-category-classification.csv"
     );
 
     @Container
@@ -101,12 +106,43 @@ class ResearchFieldCategoryMySqlMigrationTest {
     }
 
     @Test
+    void v31UpgradeAddsNaturalScienceCategoriesAndMappings() throws Exception {
+        flyway("31").migrate();
+
+        long existingImageProcessingId;
+        try (Connection connection = connection()) {
+            existingImageProcessingId = findFieldId(connection, "이미지 처리");
+            assertThat(count(connection, "SELECT COUNT(*) FROM research_field_category"))
+                .isEqualTo(18L);
+            assertThat(count(connection, "SELECT COUNT(*) FROM research_field_category_mapping"))
+                .isEqualTo(535L);
+        }
+
+        flyway(null).migrate();
+
+        try (Connection connection = connection()) {
+            assertThat(findFieldId(connection, "이미지 처리"))
+                .isEqualTo(existingImageProcessingId);
+            assertThat(count(connection, "SELECT COUNT(*) FROM research_field_category"))
+                .isEqualTo(EXPECTED_CATEGORY_COUNT);
+            assertThat(count(connection, "SELECT COUNT(*) FROM research_field"))
+                .isEqualTo(EXPECTED_CURATED_FIELD_COUNT);
+            assertThat(count(connection, "SELECT COUNT(*) FROM research_field_category_mapping"))
+                .isEqualTo(EXPECTED_CURATED_FIELD_COUNT);
+            assertMapping(connection, "가사이드 이론", "MATH_STATISTICS");
+            assertMapping(connection, "우주론", "PHYSICS_ASTRONOMY");
+            assertMapping(connection, "고분자 열역학", "CHEMISTRY_MATERIALS");
+        }
+    }
+
+    @Test
     void v22UpgradeMapsEveryCuratedFieldAndPreservesUnknownFields()
         throws Exception {
         flyway("22").migrate();
         List<CuratedAssignment> curatedAssignments = readCuratedAssignments();
-        List<String> curatedFieldNames = curatedAssignments.stream()
-            .map(CuratedAssignment::researchFieldName)
+        List<String> curatedFieldNames = expectedAssignments(curatedAssignments)
+            .keySet()
+            .stream()
             .toList();
         assertThat(curatedFieldNames)
             .hasSize(EXPECTED_CURATED_FIELD_COUNT)
@@ -163,6 +199,14 @@ class ResearchFieldCategoryMySqlMigrationTest {
             assertMapping(connection, "메타버스 보안", "SECURITY_CRYPTO");
             assertMapping(connection, "로봇공학", "ROBOT_AUTONOMOUS");
             assertMapping(connection, "5G/6G 시스템", "COMM_NETWORK");
+            assertMapping(connection, "가사이드 이론", "MATH_STATISTICS");
+            assertMapping(connection, "우주론", "PHYSICS_ASTRONOMY");
+            assertMapping(connection, "고분자 열역학", "CHEMISTRY_MATERIALS");
+            assertMapping(
+                connection,
+                "광결정 디바이스(화학 센서·반사형 디스플레이·레이저)",
+                "PHOTONICS_OPTICS"
+            );
             assertThat(findAllMappings(connection))
                 .isEqualTo(expectedAssignments(curatedAssignments));
             assertThatThrownBy(() -> executeUpdate(
@@ -174,10 +218,24 @@ class ResearchFieldCategoryMySqlMigrationTest {
     }
 
     private List<CuratedAssignment> readCuratedAssignments() throws Exception {
-        return Files.readAllLines(CLASSIFICATION_CSV, StandardCharsets.UTF_8).stream()
+        List<CuratedAssignment> assignments = new ArrayList<>();
+        assignments.addAll(readCuratedAssignments(BASE_CLASSIFICATION_CSV, 0, 5));
+        assignments.addAll(readCuratedAssignments(NATURAL_SCIENCE_CLASSIFICATION_CSV, 1, 7));
+        return assignments;
+    }
+
+    private List<CuratedAssignment> readCuratedAssignments(
+        Path csvPath,
+        int fieldNameColumn,
+        int categoryCodeColumn
+    ) throws Exception {
+        return Files.readAllLines(csvPath, StandardCharsets.UTF_8).stream()
             .skip(1)
             .map(this::parseCsvRow)
-            .map(columns -> new CuratedAssignment(columns.get(0), columns.get(5)))
+            .map(columns -> new CuratedAssignment(
+                columns.get(fieldNameColumn),
+                columns.get(categoryCodeColumn)
+            ))
             .toList();
     }
 
@@ -230,9 +288,9 @@ class ResearchFieldCategoryMySqlMigrationTest {
                 assignment.researchFieldName(),
                 assignment.categoryCode()
             );
-            if (previous != null) {
+            if (previous != null && !previous.equals(assignment.categoryCode())) {
                 throw new IllegalArgumentException(
-                    "Duplicated research field in CSV: " + assignment.researchFieldName()
+                    "Conflicting categories in CSV: " + assignment.researchFieldName()
                 );
             }
         }

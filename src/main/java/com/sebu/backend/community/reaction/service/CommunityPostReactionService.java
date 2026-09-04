@@ -40,8 +40,8 @@ public class CommunityPostReactionService {
 
     @Transactional
     public PostBookmarkResponse bookmark(Long userId, Long postId) {
-        requireActivePost(postId);
         userRepository.findByIdForUpdate(userId).orElseThrow(UserNotFoundException::new);
+        requireActivePost(postId);
 
         CommunityPostBookmarkId bookmarkId = new CommunityPostBookmarkId(userId, postId);
         if (bookmarkRepository.existsById(bookmarkId)) {

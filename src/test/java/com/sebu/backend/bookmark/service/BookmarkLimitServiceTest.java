@@ -25,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -114,6 +115,24 @@ class BookmarkLimitServiceTest {
                 });
 
         verify(postBookmarkRepository, never()).insertIgnore(1L, 51L);
+    }
+
+    @Test
+    void locksUserBeforeReadingPostWhenAddingPostBookmark() {
+        CommunityPostBookmarkId bookmarkId = new CommunityPostBookmarkId(1L, 10L);
+        when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(user));
+        when(postRepository.existsByIdAndDeletedAtIsNull(10L)).thenReturn(true);
+        when(postBookmarkRepository.existsById(bookmarkId)).thenReturn(false);
+        when(postBookmarkRepository.countByUser_IdAndPost_DeletedAtIsNull(1L)).thenReturn(49L);
+
+        postReactionService.bookmark(1L, 10L);
+
+        var ordered = inOrder(userRepository, postRepository, postBookmarkRepository);
+        ordered.verify(userRepository).findByIdForUpdate(1L);
+        ordered.verify(postRepository).existsByIdAndDeletedAtIsNull(10L);
+        ordered.verify(postBookmarkRepository).existsById(bookmarkId);
+        ordered.verify(postBookmarkRepository).countByUser_IdAndPost_DeletedAtIsNull(1L);
+        ordered.verify(postBookmarkRepository).insertIgnore(1L, 10L);
     }
 
     @Test

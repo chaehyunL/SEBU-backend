@@ -1,5 +1,7 @@
 package com.sebu.backend.mypage.dto;
 
+import com.sebu.backend.community.common.dto.CommunityAuthorResponse;
+import com.sebu.backend.community.post.domain.CommunityPostCategory;
 import com.sebu.backend.user.domain.GpaBand;
 
 import java.time.LocalDateTime;
@@ -8,7 +10,8 @@ import java.util.List;
 public record MyPageResponse(
         Profile profile,
         Summary summary,
-        BookmarkedLaboratories bookmarkedLaboratories
+        BookmarkedLaboratories bookmarkedLaboratories,
+        BookmarkedPosts bookmarkedPosts
 ) {
     public record Profile(
             String name,
@@ -23,19 +26,42 @@ public record MyPageResponse(
     }
 
     public record Summary(
-            long bookmarkedLaboratoryCount
+            long bookmarkedLaboratoryCount,
+            long bookmarkedPostCount
     ) {
     }
 
     public record BookmarkedLaboratories(
-            List<BookmarkedLaboratory> items,
-            boolean hasNext
+            List<BookmarkedLaboratory> items
     ) {
     }
 
     public record BookmarkedLaboratory(
             LocalDateTime bookmarkedAt,
             LaboratorySummary laboratory
+    ) {
+    }
+
+    public record BookmarkedPosts(
+            List<BookmarkedPost> items
+    ) {
+    }
+
+    public record BookmarkedPost(
+            LocalDateTime bookmarkedAt,
+            PostSummary post
+    ) {
+    }
+
+    public record PostSummary(
+            Long id,
+            CommunityPostCategory category,
+            String title,
+            CommunityAuthorResponse author,
+            long likeCount,
+            long commentCount,
+            long viewCount,
+            LocalDateTime createdAt
     ) {
     }
 

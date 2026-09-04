@@ -3,8 +3,6 @@ package com.sebu.backend.bookmark.service;
 import com.sebu.backend.bookmark.domain.Bookmark;
 import com.sebu.backend.bookmark.domain.BookmarkId;
 import com.sebu.backend.bookmark.dto.BookmarkedLaboratoriesResponse;
-import com.sebu.backend.bookmark.exception.InvalidCursorException;
-import com.sebu.backend.bookmark.exception.InvalidSizeException;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult;
 import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
@@ -16,13 +14,9 @@ import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
 import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -50,32 +44,11 @@ public class BookmarkService {
     }
 
     @Transactional(readOnly = true)
-    public BookmarkedLaboratoriesResponse getBookmarkedLaboratories(
-            Long userId,
-            String cursor,
-            int size
-    ) {
-        if (size < 1 || size > 50) {
-            throw new InvalidSizeException();
-        }
+    public BookmarkedLaboratoriesResponse getBookmarkedLaboratories(Long userId) {
+        List<Bookmark> bookmarks =
+                bookmarkRepository.findBookmarkedLaboratories(userId);
 
-        CursorValue cursorValue = decodeCursor(cursor);
-
-        List<Bookmark> results =
-                bookmarkRepository.findBookmarkedLaboratories(
-                        userId,
-                        cursorValue.createdAt(),
-                        cursorValue.laboratoryId(),
-                        PageRequest.of(0, size + 1)
-                );
-
-        boolean hasNext = results.size() > size;
-
-        List<Bookmark> pageItems = hasNext
-                ? results.subList(0, size)
-                : results;
-
-        List<Long> laboratoryIds = pageItems.stream()
+        List<Long> laboratoryIds = bookmarks.stream()
                 .map(bookmark ->
                         bookmark.getLaboratory().getId())
                 .toList();
@@ -90,7 +63,7 @@ public class BookmarkService {
                 getResearchFields(laboratoryIds);
 
         List<BookmarkedLaboratoriesResponse.BookmarkedLaboratory> items =
-                pageItems.stream()
+                bookmarks.stream()
                         .map(bookmark ->
                                 toBookmarkedLaboratory(
                                         bookmark,
@@ -100,16 +73,7 @@ public class BookmarkService {
                         )
                         .toList();
 
-        String nextCursor =
-                hasNext && !pageItems.isEmpty()
-                        ? encodeCursor(pageItems.getLast())
-                        : null;
-
-        return new BookmarkedLaboratoriesResponse(
-                items,
-                nextCursor,
-                hasNext
-        );
+        return new BookmarkedLaboratoriesResponse(items);
     }
 
     @Transactional
@@ -230,51 +194,4 @@ public class BookmarkService {
         );
     }
 
-    private CursorValue decodeCursor(String cursor) {
-        if (cursor == null || cursor.isBlank()) {
-            return new CursorValue(null, null);
-        }
-
-        try {
-            String decoded = new String(
-                    Base64.getUrlDecoder().decode(cursor),
-                    StandardCharsets.UTF_8
-            );
-
-            String[] parts = decoded.split("\\|");
-
-            if (parts.length != 2) {
-                throw new InvalidCursorException();
-            }
-
-            return new CursorValue(
-                    LocalDateTime.parse(parts[0]),
-                    Long.parseLong(parts[1])
-            );
-
-        } catch (InvalidCursorException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new InvalidCursorException();
-        }
-    }
-
-    private String encodeCursor(Bookmark bookmark) {
-        String value =
-                bookmark.getCreatedAt()
-                        + "|"
-                        + bookmark.getLaboratory().getId();
-
-        return Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(
-                        value.getBytes(StandardCharsets.UTF_8)
-                );
-    }
-
-    private record CursorValue(
-            LocalDateTime createdAt,
-            Long laboratoryId
-    ) {
-    }
 }

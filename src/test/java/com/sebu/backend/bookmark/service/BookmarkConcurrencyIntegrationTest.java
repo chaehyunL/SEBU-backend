@@ -38,6 +38,20 @@ class BookmarkConcurrencyIntegrationTest {
 
     @Container
     static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.4");
+    @Autowired
+    BookmarkService bookmarkService;
+    @Autowired
+    CollegeRepository collegeRepository;
+    @Autowired
+    DepartmentRepository departmentRepository;
+    @Autowired
+    ProfessorRepository professorRepository;
+    @Autowired
+    LaboratoryRepository laboratoryRepository;
+    @Autowired
+    AppUserRepository appUserRepository;
+    @Autowired
+    JdbcTemplate jdbcTemplate;
 
     @DynamicPropertySource
     static void configureMySql(DynamicPropertyRegistry registry) {
@@ -46,27 +60,6 @@ class BookmarkConcurrencyIntegrationTest {
         registry.add("spring.datasource.password", MYSQL::getPassword);
         registry.add("spring.datasource.driver-class-name", MYSQL::getDriverClassName);
     }
-
-    @Autowired
-    BookmarkService bookmarkService;
-
-    @Autowired
-    CollegeRepository collegeRepository;
-
-    @Autowired
-    DepartmentRepository departmentRepository;
-
-    @Autowired
-    ProfessorRepository professorRepository;
-
-    @Autowired
-    LaboratoryRepository laboratoryRepository;
-
-    @Autowired
-    AppUserRepository appUserRepository;
-
-    @Autowired
-    JdbcTemplate jdbcTemplate;
 
     @Test
     void simultaneousBookmarkRequestsSucceedWithOneBookmark() throws Exception {

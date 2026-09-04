@@ -2,12 +2,20 @@ package com.sebu.backend.community.bookmark.repository;
 
 import com.sebu.backend.community.bookmark.domain.CommunityPostBookmark;
 import com.sebu.backend.community.bookmark.domain.CommunityPostBookmarkId;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface CommunityPostBookmarkRepository extends JpaRepository<CommunityPostBookmark, CommunityPostBookmarkId> {
+    @EntityGraph(attributePaths = {"post", "post.author"})
+    List<CommunityPostBookmark> findByUser_IdAndPost_DeletedAtIsNullOrderByCreatedAtDescPost_IdDesc(
+            Long userId
+    );
+
     @Query("""
             SELECT COUNT(bookmark)
             FROM CommunityPostBookmark bookmark

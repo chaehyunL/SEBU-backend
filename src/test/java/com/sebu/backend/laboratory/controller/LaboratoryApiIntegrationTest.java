@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +61,7 @@ class LaboratoryApiIntegrationTest {
     @Autowired LaboratoryQueryService queryService;
     @Autowired EntityManager entityManager;
     @Autowired EntityManagerFactory entityManagerFactory;
+    @Autowired JdbcTemplate jdbcTemplate;
     @MockitoBean CurrentUserProvider currentUserProvider;
 
     private Long firstUserId;
@@ -87,15 +89,18 @@ class LaboratoryApiIntegrationTest {
         laboratoryDepartmentRepository.save(new LaboratoryDepartment(lab1, computer));
         laboratoryDepartmentRepository.save(new LaboratoryDepartment(lab2, computer));
         laboratoryDepartmentRepository.save(new LaboratoryDepartment(deleted, computer));
-        ResearchField machineLearning = researchFieldRepository
-            .findAllByNameIgnoreCaseForUpdate("머신러닝")
-            .getFirst();
-        ResearchField aiField = researchFieldRepository
-            .findAllByNameIgnoreCaseForUpdate("인공지능")
-            .getFirst();
-        ResearchField computerVision = researchFieldRepository
-            .findAllByNameIgnoreCaseForUpdate("컴퓨터 비전")
-            .getFirst();
+        ResearchField machineLearning = researchFieldRepository.saveAndFlush(
+            new ResearchField("머신러닝")
+        );
+        ResearchField aiField = researchFieldRepository.saveAndFlush(
+            new ResearchField("인공지능")
+        );
+        ResearchField computerVision = researchFieldRepository.saveAndFlush(
+            new ResearchField("컴퓨터 비전")
+        );
+        mapCategory(machineLearning, "AI_ML");
+        mapCategory(aiField, "AI_ML");
+        mapCategory(computerVision, "SIGNAL_MEDIA");
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, machineLearning));
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, aiField));
         laboratoryResearchFieldRepository.save(new LaboratoryResearchField(lab1, computerVision));
@@ -106,6 +111,19 @@ class LaboratoryApiIntegrationTest {
         firstUserId = user1.getId();
         entityManager.flush();
         entityManager.clear();
+    }
+
+    private void mapCategory(ResearchField researchField, String categoryCode) {
+        assertThat(jdbcTemplate.update(
+            """
+                INSERT INTO research_field_category_mapping (research_field_id, category_id)
+                SELECT ?, category.id
+                FROM research_field_category category
+                WHERE category.code = ?
+                """,
+            researchField.getId(),
+            categoryCode
+        )).isOne();
     }
 
     @Test

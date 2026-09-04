@@ -13,10 +13,6 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, BookmarkId> 
 
     long countByUser_IdAndLaboratory_DeletedAtIsNull(Long userId);
 
-    List<Bookmark> findTop5ByUser_IdAndLaboratory_DeletedAtIsNullOrderByCreatedAtDesc(
-            Long userId
-    );
-
     @Modifying(flushAutomatically = true)
     @Query(
             value = """

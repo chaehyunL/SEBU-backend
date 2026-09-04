@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 @Component
 @RequiredArgsConstructor
@@ -29,15 +30,16 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
         var keys = keyResolver.resolve(request);
         var primaryPolicy = policyResolver.resolve(request);
-        RateLimitDecision decision = RateLimitDecision.permit();
+        var entries = new ArrayList<RateLimiter.RateLimitEntry>(keys.values().size());
         for (int index = 0; index < keys.values().size(); index++) {
             var policy = !keys.authenticated() && index == 0
                 ? policyResolver.anonymousIpPolicy(primaryPolicy)
                 : primaryPolicy;
-            decision = rateLimiter.tryAcquire(keys.values().get(index), policy);
-            if (!decision.allowed()) {
-                return reject(response, decision);
-            }
+            entries.add(new RateLimiter.RateLimitEntry(keys.values().get(index), policy));
+        }
+        RateLimitDecision decision = rateLimiter.tryAcquireAll(entries);
+        if (!decision.allowed()) {
+            return reject(response, decision);
         }
         return true;
     }

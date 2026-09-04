@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 public class InMemoryRateLimiter implements RateLimiter {
@@ -29,10 +31,32 @@ public class InMemoryRateLimiter implements RateLimiter {
     }
 
     @Override
-    public RateLimitDecision tryAcquire(String key, RateLimitPolicy policy) {
-        String bucketKey = policy.name() + ":" + key;
-        TokenBucket bucket = buckets.get(bucketKey, ignored -> new TokenBucket(policy.capacity(), clock.instant()));
-        return bucket.tryAcquire(clock.instant(), policy);
+    public synchronized RateLimitDecision tryAcquireAll(List<RateLimitEntry> entries) {
+        Instant now = clock.instant();
+        List<PendingAcquisition> pending = new ArrayList<>(entries.size());
+
+        for (RateLimitEntry entry : entries) {
+            RateLimitPolicy policy = entry.policy();
+            String bucketKey = policy.name() + ":" + entry.key();
+            TokenBucket bucket = buckets.get(
+                bucketKey,
+                ignored -> new TokenBucket(policy.capacity(), now)
+            );
+            bucket.refill(now, policy);
+            pending.add(new PendingAcquisition(bucket, policy));
+        }
+
+        for (PendingAcquisition acquisition : pending) {
+            RateLimitDecision decision = acquisition.bucket().decision(acquisition.policy());
+            if (!decision.allowed()) {
+                return decision;
+            }
+        }
+        pending.forEach(acquisition -> acquisition.bucket().consume());
+        return RateLimitDecision.permit();
+    }
+
+    private record PendingAcquisition(TokenBucket bucket, RateLimitPolicy policy) {
     }
 
     private static final class TokenBucket {
@@ -44,20 +68,26 @@ public class InMemoryRateLimiter implements RateLimiter {
             lastRefillAt = createdAt;
         }
 
-        private synchronized RateLimitDecision tryAcquire(Instant now, RateLimitPolicy policy) {
+        private void refill(Instant now, RateLimitPolicy policy) {
             double elapsedNanos = Duration.between(lastRefillAt, now).toNanos();
             double refillPerNano = (double) policy.capacity() / policy.refillPeriod().toNanos();
             tokens = Math.min(policy.capacity(), tokens + elapsedNanos * refillPerNano);
             lastRefillAt = now;
+        }
 
+        private RateLimitDecision decision(RateLimitPolicy policy) {
             if (tokens >= 1) {
-                tokens -= 1;
                 return RateLimitDecision.permit();
             }
 
+            double refillPerNano = (double) policy.capacity() / policy.refillPeriod().toNanos();
             long retryAfterNanos = (long) Math.ceil((1 - tokens) / refillPerNano);
             long retryAfterSeconds = (retryAfterNanos + 999_999_999L) / 1_000_000_000L;
             return RateLimitDecision.reject(retryAfterSeconds);
+        }
+
+        private void consume() {
+            tokens -= 1;
         }
     }
 }

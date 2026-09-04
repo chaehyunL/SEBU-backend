@@ -46,6 +46,40 @@ public class MyPageServiceTest {
     BookmarkRepository bookmarkRepository;
 
     @Test
+    void returnsAllBookmarkedLaboratoriesWithoutLimitingToFive() {
+        College college = collegeRepository.save(
+                new College("Bookmark College")
+        );
+        Department department = departmentRepository.save(
+                new Department(college, "Bookmark Department")
+        );
+        Professor professor = professorRepository.save(
+                new Professor(department, "Bookmark Professor", null)
+        );
+        AppUser user = appUserRepository.save(
+                new AppUser("mypage-all-bookmarks@example.com")
+        );
+
+        for (int index = 1; index <= 6; index++) {
+            Laboratory laboratory = laboratoryRepository.save(
+                    new Laboratory(
+                            professor,
+                            department,
+                            "Laboratory " + index,
+                            null,
+                            RecruitmentStatus.RECRUITING
+                    )
+            );
+            bookmarkRepository.save(new Bookmark(user, laboratory));
+        }
+
+        MyPageResponse result = myPageService.getMyPage(user.getId());
+
+        assertThat(result.summary().bookmarkedLaboratoryCount()).isEqualTo(6);
+        assertThat(result.bookmarkedLaboratories().items()).hasSize(6);
+    }
+
+    @Test
     void 마이페이지에서_프로필과_북마크_개수를_조회한다(){
         College college =collegeRepository.save(
                 new College("소프트웨어융합대학")
@@ -99,5 +133,51 @@ public class MyPageServiceTest {
                         .laboratory()
                         .bookmarked()
         ).isTrue();
+    }
+
+    @Test
+    void 마이페이지에서_삭제된_연구실의_북마크는_제외한다() {
+        College college = collegeRepository.save(
+                new College("삭제연구실대학")
+        );
+        Department department = departmentRepository.save(
+                new Department(college, "삭제연구실학과")
+        );
+        Professor professor = professorRepository.save(
+                new Professor(department, "삭제연구실교수", null)
+        );
+        Laboratory activeLaboratory = laboratoryRepository.save(
+                new Laboratory(
+                        professor,
+                        department,
+                        "활성 연구실",
+                        null,
+                        RecruitmentStatus.RECRUITING
+                )
+        );
+        Laboratory deletedLaboratory = laboratoryRepository.save(
+                new Laboratory(
+                        professor,
+                        department,
+                        "삭제 연구실",
+                        null,
+                        RecruitmentStatus.CLOSED
+                )
+        );
+        AppUser user = appUserRepository.save(
+                new AppUser("mypage-deleted-laboratory@example.com")
+        );
+        bookmarkRepository.save(new Bookmark(user, activeLaboratory));
+        bookmarkRepository.save(new Bookmark(user, deletedLaboratory));
+        deletedLaboratory.softDelete();
+        laboratoryRepository.flush();
+
+        MyPageResponse result = myPageService.getMyPage(user.getId());
+
+        assertThat(result.summary().bookmarkedLaboratoryCount()).isOne();
+        assertThat(result.bookmarkedLaboratories().items())
+                .singleElement()
+                .extracting(item -> item.laboratory().name())
+                .isEqualTo("활성 연구실");
     }
 }

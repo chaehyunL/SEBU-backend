@@ -34,7 +34,7 @@ public class MyPageService {
         AppUser user = appUserRepository.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
         long bookmarkedLaboratoryCount =
-                bookmarkRepository.countByUser_Id(userId);
+                bookmarkRepository.countByUser_IdAndLaboratory_DeletedAtIsNull(userId);
 
         List<Bookmark> bookmarks =
                 bookmarkRepository.findBookmarkedLaboratories(userId);
@@ -80,6 +80,7 @@ public class MyPageService {
                 )
         );
     }
+
     private MyPageResponse.Profile toProfile(AppUser user) {
         MyPageResponse.DepartmentSummary department = null;
 

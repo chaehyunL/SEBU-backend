@@ -2,6 +2,13 @@ package com.sebu.backend.mypage.service;
 
 import com.sebu.backend.bookmark.domain.Bookmark;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
+import com.sebu.backend.community.bookmark.domain.CommunityPostBookmark;
+import com.sebu.backend.community.bookmark.repository.CommunityPostBookmarkRepository;
+import com.sebu.backend.community.comment.repository.CommunityCommentRepository;
+import com.sebu.backend.community.common.CommunityAuthorMapper;
+import com.sebu.backend.community.common.repository.PostCountProjection;
+import com.sebu.backend.community.like.repository.CommunityPostLikeRepository;
+import com.sebu.backend.community.post.domain.CommunityPost;
 import com.sebu.backend.laboratory.dto.LaboratoriesResult;
 import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
@@ -16,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,6 +38,10 @@ public class MyPageService {
     private final LaboratoryRepository laboratoryRepository;
     private final LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
     private final LaboratorySummaryAssembler laboratorySummaryAssembler;
+    private final CommunityPostBookmarkRepository communityPostBookmarkRepository;
+    private final CommunityPostLikeRepository communityPostLikeRepository;
+    private final CommunityCommentRepository communityCommentRepository;
+    private final CommunityAuthorMapper communityAuthorMapper;
 
     public MyPageResponse getMyPage(Long userId) {
 
@@ -40,6 +52,10 @@ public class MyPageService {
 
         List<Bookmark> bookmarks =
                 bookmarkRepository.findBookmarkedLaboratories(userId);
+
+        List<CommunityPostBookmark> postBookmarks =
+                communityPostBookmarkRepository
+                        .findByUser_IdAndPost_DeletedAtIsNullOrderByCreatedAtDescPost_IdDesc(userId);
 
         List<Long> laboratoryIds = bookmarks.stream()
                 .map(bookmark -> bookmark.getLaboratory().getId())
@@ -74,7 +90,10 @@ public class MyPageService {
         MyPageResponse.Profile profile = toProfile(user);
 
         MyPageResponse.Summary summary =
-                new MyPageResponse.Summary(bookmarkedLaboratoryCount);
+                new MyPageResponse.Summary(
+                        bookmarkedLaboratoryCount,
+                        postBookmarks.size()
+                );
 
         List<MyPageResponse.BookmarkedLaboratory> bookmarkedLaboratories =
                 bookmarks.stream()
@@ -87,11 +106,32 @@ public class MyPageService {
                         )
                         .toList();
 
+        List<Long> postIds = postBookmarks.stream()
+                .map(bookmark -> bookmark.getPost().getId())
+                .toList();
+        Map<Long, Long> likeCounts = postIds.isEmpty()
+                ? Map.of()
+                : countMap(communityPostLikeRepository.countByPostIds(postIds));
+        Map<Long, Long> commentCounts = postIds.isEmpty()
+                ? Map.of()
+                : countMap(communityCommentRepository.countActiveByPostIds(postIds));
+
+        List<MyPageResponse.BookmarkedPost> bookmarkedPosts = postBookmarks.stream()
+                .map(bookmark -> toBookmarkedPost(
+                        bookmark,
+                        likeCounts,
+                        commentCounts
+                ))
+                .toList();
+
         return new MyPageResponse(
                 profile,
                 summary,
                 new MyPageResponse.BookmarkedLaboratories(
                         bookmarkedLaboratories
+                ),
+                new MyPageResponse.BookmarkedPosts(
+                        bookmarkedPosts
                 )
         );
     }
@@ -185,5 +225,35 @@ public class MyPageService {
                 laboratory.bookmarked()
         );
 
+    }
+
+    private MyPageResponse.BookmarkedPost toBookmarkedPost(
+            CommunityPostBookmark bookmark,
+            Map<Long, Long> likeCounts,
+            Map<Long, Long> commentCounts
+    ) {
+        CommunityPost post = bookmark.getPost();
+
+        return new MyPageResponse.BookmarkedPost(
+                bookmark.getCreatedAt(),
+                new MyPageResponse.PostSummary(
+                        post.getId(),
+                        post.getCategory(),
+                        post.getTitle(),
+                        communityAuthorMapper.toResponse(post.getAuthor()),
+                        likeCounts.getOrDefault(post.getId(), 0L),
+                        commentCounts.getOrDefault(post.getId(), 0L),
+                        post.getViewCount(),
+                        post.getCreatedAt()
+                )
+        );
+    }
+
+    private Map<Long, Long> countMap(List<PostCountProjection> counts) {
+        Map<Long, Long> result = new HashMap<>();
+        for (PostCountProjection count : counts) {
+            result.put(count.getPostId(), count.getCount());
+        }
+        return result;
     }
 }

@@ -87,7 +87,13 @@ public class MyPageControllerIntegrationTest {
                 .andExpect(jsonPath("$.data.bookmarkedLaboratories.items")
                         .isEmpty())
                 .andExpect(jsonPath("$.data.bookmarkedLaboratories.hasNext")
-                        .doesNotExist());
+                        .doesNotExist())
+                .andExpect(jsonPath("$.data.summary.bookmarkedPostCount")
+                        .value(0))
+                .andExpect(jsonPath("$.data.bookmarkedPosts.items")
+                        .isArray())
+                .andExpect(jsonPath("$.data.bookmarkedPosts.items")
+                        .isEmpty());
     }
 
     @Test

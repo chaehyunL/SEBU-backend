@@ -4,6 +4,11 @@ import com.sebu.backend.bookmark.domain.Bookmark;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
 import com.sebu.backend.college.domain.College;
 import com.sebu.backend.college.repository.CollegeRepository;
+import com.sebu.backend.community.bookmark.domain.CommunityPostBookmark;
+import com.sebu.backend.community.bookmark.repository.CommunityPostBookmarkRepository;
+import com.sebu.backend.community.post.domain.CommunityPost;
+import com.sebu.backend.community.post.domain.CommunityPostCategory;
+import com.sebu.backend.community.post.repository.CommunityPostRepository;
 import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.department.repository.DepartmentRepository;
 import com.sebu.backend.laboratory.domain.Laboratory;
@@ -45,6 +50,12 @@ public class MyPageServiceTest {
     @Autowired
     BookmarkRepository bookmarkRepository;
 
+    @Autowired
+    CommunityPostRepository communityPostRepository;
+
+    @Autowired
+    CommunityPostBookmarkRepository communityPostBookmarkRepository;
+
     @Test
     void returnsAllBookmarkedLaboratoriesWithoutLimitingToFive() {
         College college = collegeRepository.save(
@@ -77,6 +88,35 @@ public class MyPageServiceTest {
 
         assertThat(result.summary().bookmarkedLaboratoryCount()).isEqualTo(6);
         assertThat(result.bookmarkedLaboratories().items()).hasSize(6);
+    }
+
+    @Test
+    void returnsAllBookmarkedPostsWithoutLimitingToFive() {
+        AppUser author = appUserRepository.save(
+                new AppUser("mypage-post-author@example.com")
+        );
+        AppUser user = appUserRepository.save(
+                new AppUser("mypage-all-post-bookmarks@example.com")
+        );
+
+        for (int index = 1; index <= 6; index++) {
+            CommunityPost post = communityPostRepository.save(
+                    new CommunityPost(
+                            author,
+                            CommunityPostCategory.FREE,
+                            "Bookmarked post " + index,
+                            "Bookmarked post content " + index
+                    )
+            );
+            communityPostBookmarkRepository.save(
+                    new CommunityPostBookmark(user, post)
+            );
+        }
+
+        MyPageResponse result = myPageService.getMyPage(user.getId());
+
+        assertThat(result.summary().bookmarkedPostCount()).isEqualTo(6);
+        assertThat(result.bookmarkedPosts().items()).hasSize(6);
     }
 
     @Test

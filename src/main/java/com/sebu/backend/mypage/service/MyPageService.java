@@ -2,13 +2,13 @@ package com.sebu.backend.mypage.service;
 
 import com.sebu.backend.bookmark.domain.Bookmark;
 import com.sebu.backend.bookmark.repository.BookmarkRepository;
-import com.sebu.backend.college.domain.College;
-import com.sebu.backend.department.domain.Department;
-import com.sebu.backend.laboratory.domain.Laboratory;
+import com.sebu.backend.laboratory.dto.LaboratoriesResult;
+import com.sebu.backend.laboratory.query.LaboratorySummaryAssembler;
+import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldProjection;
 import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
+import com.sebu.backend.laboratory.repository.LaboratorySummaryProjection;
 import com.sebu.backend.mypage.dto.MyPageResponse;
-import com.sebu.backend.professor.domain.Professor;
 import com.sebu.backend.user.domain.AppUser;
 import com.sebu.backend.user.exception.UserNotFoundException;
 import com.sebu.backend.user.repository.AppUserRepository;
@@ -27,7 +27,9 @@ public class MyPageService {
 
     private final AppUserRepository appUserRepository;
     private final BookmarkRepository bookmarkRepository;
+    private final LaboratoryRepository laboratoryRepository;
     private final LaboratoryResearchFieldRepository laboratoryResearchFieldRepository;
+    private final LaboratorySummaryAssembler laboratorySummaryAssembler;
 
     public MyPageResponse getMyPage(Long userId) {
 
@@ -42,6 +44,18 @@ public class MyPageService {
         List<Long> laboratoryIds = bookmarks.stream()
                 .map(bookmark -> bookmark.getLaboratory().getId())
                 .toList();
+
+        Map<Long, LaboratorySummaryProjection> summaryByLaboratoryId =
+                laboratoryIds.isEmpty()
+                        ? Map.of()
+                        : laboratoryRepository.findSummariesByIds(
+                                userId,
+                                laboratoryIds
+                        ).stream()
+                        .collect(Collectors.toMap(
+                                LaboratorySummaryProjection::getId,
+                                summary -> summary
+                        ));
 
         Map<Long, List<String>> researchFieldsByLaboratoryId =
                 laboratoryIds.isEmpty()
@@ -67,6 +81,7 @@ public class MyPageService {
                         .map(bookmark ->
                                 toBookmarkedLaboratory(
                                         bookmark,
+                                        summaryByLaboratoryId,
                                         researchFieldsByLaboratoryId
                                 )
                         )
@@ -111,63 +126,63 @@ public class MyPageService {
 
     private MyPageResponse.BookmarkedLaboratory toBookmarkedLaboratory(
             Bookmark bookmark,
-            Map<Long,List<String>> researchFieldsByLaboratoryId
+            Map<Long, LaboratorySummaryProjection> summaryByLaboratoryId,
+            Map<Long, List<String>> researchFieldsByLaboratoryId
     ) {
+        Long laboratoryId = bookmark.getLaboratory().getId();
+        LaboratorySummaryProjection projection =
+                summaryByLaboratoryId.get(laboratoryId);
+
+        if (projection == null) {
+            throw new IllegalStateException("LABORATORY_SUMMARY_NOT_FOUND");
+        }
+
+        LaboratoriesResult.LaboratoryResult laboratory =
+                laboratorySummaryAssembler.assemble(
+                        projection,
+                        researchFieldsByLaboratoryId.getOrDefault(
+                                laboratoryId,
+                                List.of()
+                        )
+                );
+
         return new MyPageResponse.BookmarkedLaboratory(
                 bookmark.getCreatedAt(),
-                toLaboratorySummary(
-                        bookmark.getLaboratory(),
-                        researchFieldsByLaboratoryId
-                )
+                toLaboratorySummary(laboratory)
         );
     }
 
     private MyPageResponse.LaboratorySummary toLaboratorySummary(
-            Laboratory laboratory,
-            Map<Long, List<String>> researchFieldsByLaboratoryId
+            LaboratoriesResult.LaboratoryResult laboratory
     ) {
-        Department department = laboratory.getDepartment();
-        College college = department.getCollege();
-        Professor professor = laboratory.getProfessor();
-
         MyPageResponse.CollegeSummary collegeSummary =
                 new MyPageResponse.CollegeSummary(
-                        college.getId().toString(),
-                        college.getName()
+                        laboratory.college().id().toString(),
+                        laboratory.college().name()
                 );
 
         MyPageResponse.DepartmentSummary departmentSummary =
                 new MyPageResponse.DepartmentSummary(
-                        department.getId().toString(),
-                        department.getName()
+                        laboratory.department().id().toString(),
+                        laboratory.department().name()
                 );
         MyPageResponse.ProfessorSummary professorSummary =
                 new MyPageResponse.ProfessorSummary(
-                        professor.getId().toString(),
-                        professor.getName()
-                );
-        List<String> researchFields =
-                researchFieldsByLaboratoryId.getOrDefault(
-                        laboratory.getId(),
-                        List.of()
-                );
-
-        long bookmarkCount =
-                bookmarkRepository.countActiveByLaboratoryId(
-                        laboratory.getId()
+                        laboratory.professor().id().toString(),
+                        laboratory.professor().name()
                 );
 
         return new MyPageResponse.LaboratorySummary(
-                laboratory.getId().toString(),
-                laboratory.getName(),
-                laboratory.getWebsiteUrl(),
+                laboratory.id().toString(),
+                laboratory.name(),
+                laboratory.websiteUrl(),
                 collegeSummary,
                 departmentSummary,
                 professorSummary,
-                researchFields,
-                laboratory.getRecruitmentStatus().name(),
-                bookmarkCount,
-                true
+                laboratory.researchFields(),
+                laboratory.recruitmentStatus().name(),
+                laboratory.bookmarkCount(),
+                laboratory.bookmarked()
         );
 
     }

@@ -1,6 +1,7 @@
 package com.sebu.backend.laboratoryreview;
 
 import com.sebu.backend.college.domain.College;
+import com.sebu.backend.community.common.dto.CommunityAuthorStatus;
 import com.sebu.backend.department.domain.Department;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.domain.RecruitmentStatus;
@@ -19,6 +20,8 @@ import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewRepository;
 import com.sebu.backend.laboratoryreview.service.LaboratoryReviewService;
 import com.sebu.backend.professor.domain.Professor;
 import com.sebu.backend.user.domain.AppUser;
+import com.sebu.backend.user.domain.GpaBand;
+import com.sebu.backend.user.domain.Nickname;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.PersistenceContext;
@@ -29,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -505,5 +509,155 @@ class LaboratoryReviewIntegrationTest {
                 statistics.getPrepareStatementCount();
 
         assertThat(queryCount).isLessThanOrEqualTo(4);
+    }
+
+    @Test
+    void exposesAnonymousAuthorForActiveReviewAuthor() {
+        // given
+        TestFixture fixture = createFixture();
+
+        laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        );
+
+        // when
+        var response = laboratoryReviewService.getReviews(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                0,
+                20
+        );
+
+        // then
+        var reviewItem = response.reviews().get(0);
+
+        assertThat(reviewItem.author().id()).isNull();
+
+        assertThat(reviewItem.author().nickname())
+                .isEqualTo("익명");
+
+        assertThat(reviewItem.author().status())
+                .isEqualTo(CommunityAuthorStatus.ACTIVE);
+
+        assertThat(reviewItem.mine()).isTrue();
+    }
+
+    @Test
+    void neverExposesRealNicknameOfReviewAuthor() {
+        // given
+        TestFixture fixture = createFixture();
+
+        laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        );
+
+        AppUser author = entityManager.find(
+                AppUser.class,
+                fixture.userId()
+        );
+
+        author.updateProfile(
+                Nickname.from("연구왕"),
+                (short) 3,
+                GpaBand.GTE_3_5,
+                "",
+                LocalDateTime.now(),
+                "v1",
+                "v1"
+        );
+
+        entityManager.flush();
+
+        // when
+        var response = laboratoryReviewService.getReviews(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                0,
+                20
+        );
+
+        // then
+        assertThat(response.reviews().get(0).author().nickname())
+                .isEqualTo("익명")
+                .isNotEqualTo("연구왕");
+    }
+
+    @Test
+    void hidesAuthorIdentityWhenAuthorWithdrew() {
+        // given
+        TestFixture fixture = createFixture();
+
+        laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        );
+
+        AppUser author = entityManager.find(
+                AppUser.class,
+                fixture.userId()
+        );
+
+        author.withdraw(LocalDateTime.now());
+
+        entityManager.flush();
+
+        // when
+        var response = laboratoryReviewService.getReviews(
+                fixture.laboratoryId(),
+                null,
+                0,
+                20
+        );
+
+        // then
+        assertThat(response.reviews()).hasSize(1);
+
+        assertThat(response.reviews().get(0).author().status())
+                .isEqualTo(CommunityAuthorStatus.WITHDRAW);
+
+        assertThat(response.reviews().get(0).author().id()).isNull();
+
+        assertThat(response.reviews().get(0).author().nickname()).isNull();
+    }
+
+    @Test
+    void marksMineOnlyForReviewWrittenByViewer() {
+        // given
+        TestFixture fixture = createFixture();
+
+        laboratoryReviewService.createReview(
+                fixture.laboratoryId(),
+                fixture.userId(),
+                createRequest()
+        );
+
+        AppUser anotherUser = new AppUser("mine-check@test.com");
+
+        entityManager.persist(anotherUser);
+        entityManager.flush();
+
+        // when
+        var otherViewer = laboratoryReviewService.getReviews(
+                fixture.laboratoryId(),
+                anotherUser.getId(),
+                0,
+                20
+        );
+
+        var anonymousViewer = laboratoryReviewService.getReviews(
+                fixture.laboratoryId(),
+                null,
+                0,
+                20
+        );
+
+        // then
+        assertThat(otherViewer.reviews().get(0).mine()).isFalse();
+        assertThat(anonymousViewer.reviews().get(0).mine()).isFalse();
     }
 }

@@ -1,5 +1,7 @@
 package com.sebu.backend.laboratoryreview.service;
 
+import com.sebu.backend.community.common.CommunityAuthorAssembler;
+import com.sebu.backend.community.common.dto.CommunityAuthorResponse;
 import com.sebu.backend.global.auth.ActiveUserCommandGuard;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.exception.LaboratoryNotFoundException;
@@ -22,10 +24,10 @@ import com.sebu.backend.laboratoryreview.repository.LaboratoryReviewRepository;
 import com.sebu.backend.user.domain.AppUser;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,6 +48,7 @@ public class LaboratoryReviewService {
     private final LaboratoryReviewRepository laboratoryReviewRepository;
     private final LaboratoryRepository laboratoryRepository;
     private final ActiveUserCommandGuard activeUserGuard;
+    private final CommunityAuthorAssembler authorAssembler;
 
     @Transactional
     public LaboratoryReviewCreateResponse createReview(
@@ -153,6 +156,13 @@ public class LaboratoryReviewService {
                             );
         }
 
+        Map<Long, CommunityAuthorResponse> authorsByUserId =
+                authorAssembler.toResponses(
+                        reviewEntities.stream()
+                                .map(LaboratoryReview::getAuthor)
+                                .toList()
+                );
+
         List<LaboratoryReviewListResponse.ReviewItem> reviews =
                 reviewEntities.stream()
                         .map(review ->
@@ -161,7 +171,12 @@ public class LaboratoryReviewService {
                                         tagsByReviewId.getOrDefault(
                                                 review.getId(),
                                                 List.of()
-                                        )
+                                        ),
+                                        authorsByUserId.get(
+                                                review.getAuthor().getId()
+                                        ),
+                                        currentUserId != null
+                                                && review.isWrittenBy(currentUserId)
                                 )
                         )
                         .toList();

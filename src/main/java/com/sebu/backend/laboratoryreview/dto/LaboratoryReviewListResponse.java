@@ -1,5 +1,6 @@
 package com.sebu.backend.laboratoryreview.dto;
 
+import com.sebu.backend.community.common.dto.CommunityAuthorResponse;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratoryreview.domain.LaboratoryReview;
 
@@ -32,6 +33,8 @@ public record LaboratoryReviewListResponse(
 
     public record ReviewItem(
             Long id,
+            CommunityAuthorResponse author,
+            boolean mine,
             String category,
             int participationYear,
             String participationTerm,
@@ -45,10 +48,14 @@ public record LaboratoryReviewListResponse(
 
         public static ReviewItem from(
                 LaboratoryReview review,
-                List<String> tags
+                List<String> tags,
+                CommunityAuthorResponse author,
+                boolean mine
         ) {
             return new ReviewItem(
                     review.getId(),
+                    author,
+                    mine,
                     review.getCategory().name(),
                     review.getParticipationYear(),
                     review.getParticipationTerm().name(),

@@ -19,7 +19,8 @@ public class ResearchFieldCategoryController {
 
     @Operation(
             summary = "연구 분야 카테고리 목록 조회",
-            description = "사용 가능한 연구 분야 카테고리 전체 목록을 조회합니다."
+            description = "사용 가능한 연구 분야 카테고리 전체 목록을 표시 순서로 조회합니다. "
+                    + "parentId가 null이면 최상위 카테고리이고, 값이 있으면 해당 상위 카테고리의 세부 카테고리입니다."
     )
     @GetMapping
     public ApiResponse<ResearchFieldCategoriesResponse> getAll() {

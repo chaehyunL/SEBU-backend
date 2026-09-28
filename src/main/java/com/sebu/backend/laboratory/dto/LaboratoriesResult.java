@@ -58,9 +58,10 @@ public record LaboratoriesResult(
     }
 
     public record ResearchFieldCategoryResult(
-            Long id,
-            String code,
-            String name
+        Long id,
+        String code,
+        String name,
+        Long parentId
     ) {
     }
 

@@ -24,7 +24,7 @@ class ResearchFieldCategoryApiIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.error").doesNotExist())
-            .andExpect(jsonPath("$.data.categories.length()").value(32))
+            .andExpect(jsonPath("$.data.categories.length()").value(52))
             .andExpect(jsonPath("$.data.categories[0].code").value("AI_ML"))
             .andExpect(jsonPath("$.data.categories[0].name")
                 .value("인공지능·기계학습"))

@@ -69,6 +69,64 @@ abstract class MixedCollegeResearchFieldMigrationContract {
     }
 
     @Test
+    void v49RepairsReviewedRobotMappingsAndCanonicalizesPreviouslyPromotedCandidates() {
+        flyway("48").migrate();
+
+        Long laboratoryId = jdbc.queryForObject(
+            "SELECT id FROM laboratory ORDER BY id LIMIT 1", Long.class
+        );
+        Long researchFieldId = jdbc.queryForObject(
+            "SELECT id FROM research_field WHERE name='로봇공학'", Long.class
+        );
+        jdbc.update("""
+            INSERT INTO laboratory_research_field_candidate (
+                id, laboratory_id, source_field_key, source_description_hash,
+                raw_field_text, candidate_name, extraction_method, source_order,
+                extraction_rule_version, review_status, reviewed_by, reviewed_at,
+                review_revision, extracted_at, version, promoted_research_field_id,
+                promoted_at, promoted_reviewed_at, promoted_review_revision
+            ) VALUES (
+                999999, ?, REPEAT('a', 64), REPEAT('b', 64), '로봇   공학 원문',
+                '로봇   공학', 'WHOLE_TEXT', 0, 'test', 'APPROVED', 'reviewer',
+                CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 4, ?, CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP, 1
+            )
+            """, laboratoryId, researchFieldId);
+
+        Flyway.configure()
+            .dataSource(dataSource())
+            .locations("classpath:db/migration")
+            .load()
+            .migrate();
+
+        assertCategory("AI 기반 건설로봇 운영", "ROBOT_AUTONOMOUS_CONSTRUCTION_AGRI");
+        assertCategory("군집·편대 비행", "ROBOT_AUTONOMOUS_AERIAL");
+        assertCategory("트랙터·트레일러 자율주행", "ROBOT_AUTONOMOUS_MOBILITY");
+        assertThat(countParentMapping("AI 기반 건설로봇 운영")).isZero();
+        assertThat(countParentMapping("군집·편대 비행")).isZero();
+        assertThat(countParentMapping("트랙터·트레일러 자율주행")).isZero();
+
+        Map<String, Object> candidate = jdbc.queryForMap("""
+            SELECT candidate_name, raw_field_text, version, promoted_research_field_id
+            FROM laboratory_research_field_candidate WHERE id=999999
+            """);
+        assertThat(candidate.get("candidate_name")).isEqualTo("로봇공학");
+        assertThat(candidate.get("raw_field_text")).isEqualTo("로봇   공학 원문");
+        assertThat(((Number) candidate.get("version")).longValue()).isEqualTo(5L);
+        assertThat(((Number) candidate.get("promoted_research_field_id")).longValue())
+            .isEqualTo(researchFieldId);
+    }
+
+    private int countParentMapping(String fieldName) {
+        return jdbc.queryForObject("""
+            SELECT COUNT(*) FROM research_field_category_mapping mapping
+            JOIN research_field field ON field.id=mapping.research_field_id
+            JOIN research_field_category category ON category.id=mapping.category_id
+            WHERE field.name=? AND category.code='ROBOT_AUTONOMOUS'
+            """, Integer.class, fieldName);
+    }
+
+    @Test
     void upgradeReusesDifferentIdsAndPreservesProfilesAuditRowsAndExistingMappings() {
         flyway("43").migrate();
         long department = jdbc.queryForObject("SELECT id FROM department WHERE name='건축공학과'", Long.class);

@@ -3,6 +3,8 @@ package com.sebu.backend.researchfield.promotion.service;
 import com.sebu.backend.laboratory.domain.Laboratory;
 import com.sebu.backend.laboratory.repository.LaboratoryRepository;
 import com.sebu.backend.researchfield.candidate.domain.LaboratoryResearchFieldCandidate;
+import com.sebu.backend.researchfield.candidate.domain.ResearchFieldCandidateDraft;
+import com.sebu.backend.researchfield.candidate.domain.ResearchFieldExtractionMethod;
 import com.sebu.backend.researchfield.candidate.repository.LaboratoryResearchFieldCandidateRepository;
 import com.sebu.backend.researchfield.domain.ResearchField;
 import com.sebu.backend.researchfield.promotion.exception.ResearchFieldPromotionException;
@@ -202,6 +204,63 @@ class ResearchFieldCandidatePromotionTransactionServiceTest {
             any(LocalDateTime.class)
         );
         verify(candidateRepository, never()).save(candidate);
+    }
+
+    @Test
+    void rePromotesCanonicalizedCandidateToItsPreviouslyPromotedResearchField() {
+        Laboratory candidateLaboratory = laboratory();
+        when(candidateLaboratory.getId()).thenReturn(LABORATORY_ID);
+        LaboratoryResearchFieldCandidate candidate = new LaboratoryResearchFieldCandidate(
+            candidateLaboratory,
+            new ResearchFieldCandidateDraft(
+                "a".repeat(64),
+                "로봇  공학",
+                "로봇  공학",
+                ResearchFieldExtractionMethod.WHOLE_TEXT,
+                0
+            ),
+            "b".repeat(64),
+            "extraction-v1",
+            LocalDateTime.of(2026, 9, 1, 10, 0)
+        );
+        ResearchField promotedResearchField = new ResearchField("로봇공학");
+        candidate.approve("reviewer", null, LocalDateTime.of(2026, 9, 1, 11, 0));
+        candidate.recordPromotion(
+            promotedResearchField,
+            LocalDateTime.of(2026, 9, 1, 12, 0)
+        );
+        candidate.markStale();
+        candidate.refreshFromExtraction(
+            new ResearchFieldCandidateDraft(
+                "a".repeat(64),
+                "로봇  공학",
+                "로봇  공학",
+                ResearchFieldExtractionMethod.WHOLE_TEXT,
+                0
+            ),
+            "c".repeat(64),
+            "extraction-v2",
+            LocalDateTime.of(2026, 9, 2, 10, 0)
+        );
+        candidate.reviseCandidateName("로봇공학");
+        candidate.approve("reviewer", "재승인", LocalDateTime.of(2026, 9, 2, 11, 0));
+        when(candidateRepository.findByIdForPromotion(CANDIDATE_ID))
+            .thenReturn(Optional.of(candidate));
+        Laboratory lockedLaboratory = activeLockedLaboratory();
+        when(nameNormalizer.equivalent("로봇공학", "로봇공학")).thenReturn(true);
+        when(linkService.ensure(lockedLaboratory, promotedResearchField)).thenReturn(false);
+
+        ResearchFieldPromotionOutcome outcome = service.promote(CANDIDATE_ID);
+
+        assertThat(outcome.fieldCreated()).isFalse();
+        assertThat(outcome.linkCreated()).isFalse();
+        assertThat(outcome.promotionRecorded()).isTrue();
+        assertThat(outcome.skipped()).isFalse();
+        verify(linkService).ensure(lockedLaboratory, promotedResearchField);
+        verify(candidateRepository).save(candidate);
+        assertThat(candidate.getPromotedResearchField()).isSameAs(promotedResearchField);
+        assertThat(candidate.getPromotedReviewRevision()).isEqualTo(2L);
+        assertThat(candidate.needsPromotion()).isFalse();
     }
 
     private LaboratoryResearchFieldCandidate currentCandidate() {

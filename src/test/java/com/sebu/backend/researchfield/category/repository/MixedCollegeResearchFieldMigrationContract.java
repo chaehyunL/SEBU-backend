@@ -1,17 +1,31 @@
 package com.sebu.backend.researchfield.category.repository;
 
+import com.sebu.backend.laboratory.repository.LaboratoryRepository;
+import com.sebu.backend.laboratory.repository.LaboratoryResearchFieldRepository;
+import com.sebu.backend.researchfield.candidate.domain.ResearchFieldCandidateDraft;
+import com.sebu.backend.researchfield.candidate.domain.ResearchFieldExtractionMethod;
+import com.sebu.backend.researchfield.candidate.repository.LaboratoryResearchFieldCandidateRepository;
+import com.sebu.backend.researchfield.promotion.service.LaboratoryResearchFieldLinkService;
+import com.sebu.backend.researchfield.promotion.service.ResearchFieldCandidatePromotionService;
+import com.sebu.backend.researchfield.promotion.service.ResearchFieldCandidatePromotionTransactionService;
+import com.sebu.backend.researchfield.promotion.service.ResearchFieldNameNormalizer;
+import com.sebu.backend.researchfield.promotion.service.ResearchFieldPromotionTargetResolver;
+import com.sebu.backend.researchfield.repository.ResearchFieldRepository;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.jpa.repository.support.JpaRepositoryFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter;
 
 import javax.sql.DataSource;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,16 +82,65 @@ abstract class MixedCollegeResearchFieldMigrationContract {
         assertThat(flyway("45").migrate().migrationsExecuted).isZero();
     }
 
-    @Test
-    void v49RepairsReviewedRobotMappingsAndCanonicalizesPreviouslyPromotedCandidates() {
+    @ParameterizedTest(name = "V49: {0} -> {1}")
+    @CsvSource({
+        "AI 기반 건설로봇 운영, ROBOT_AUTONOMOUS_CONSTRUCTION_AGRI",
+        "군집·편대 비행, ROBOT_AUTONOMOUS_AERIAL",
+        "트랙터·트레일러 자율주행, ROBOT_AUTONOMOUS_MOBILITY"
+    })
+    void v49MapsEachExistingDatabaseNameToItsReviewedRobotSubcategory(
+        String fieldName, String categoryCode
+    ) {
+        assertThat(new ClassPathResource(
+            "db/migration/V49__repair_robot_mappings_and_candidate_spacing.sql"
+        ).exists()).as("V49 보정 마이그레이션이 배포 리소스에 포함되어야 한다").isTrue();
         flyway("48").migrate();
 
-        Long laboratoryId = jdbc.queryForObject(
-            "SELECT id FROM laboratory ORDER BY id LIMIT 1", Long.class
+        // Use the actual V45 data rather than creating fields from the V48 mapping list.
+        Long fieldId = jdbc.queryForObject(
+            "SELECT id FROM research_field WHERE name=?", Long.class, fieldName
         );
+        List<Long> laboratoryIds = jdbc.queryForList("""
+            SELECT laboratory_id FROM laboratory_research_field
+            WHERE research_field_id=? ORDER BY laboratory_id
+            """, Long.class, fieldId);
+        assertThat(laboratoryIds).isNotEmpty();
+        assertThat(countCategoryMapping(fieldName, categoryCode))
+            .as("V48에서 누락된 연결: %s -> %s", fieldName, categoryCode).isZero();
+        assertThat(countParentMapping(fieldName)).isEqualTo(1);
+
+        assertThat(flyway("49").migrate().migrationsExecuted).isEqualTo(1);
+
+        assertCategory(fieldName, categoryCode);
+        assertThat(countParentMapping(fieldName)).isZero();
+        assertThat(jdbc.queryForObject(
+            "SELECT id FROM research_field WHERE name=?", Long.class, fieldName
+        )).isEqualTo(fieldId);
+        assertThat(jdbc.queryForList("""
+            SELECT laboratory_id FROM laboratory_research_field
+            WHERE research_field_id=? ORDER BY laboratory_id
+            """, Long.class, fieldId)).isEqualTo(laboratoryIds);
+        assertThat(jdbc.queryForObject("""
+            SELECT parent.code FROM research_field_category child
+            JOIN research_field_category parent ON parent.id=child.parent_category_id
+            WHERE child.code=?
+            """, String.class, categoryCode)).isEqualTo("ROBOT_AUTONOMOUS");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"로봇  공학", "로봇\t \t공학"})
+    void v49AllowsRePromotionAfterSourceReappears(String originalName) {
+        flyway("46").migrate();
+        ResearchFieldNameNormalizer normalizer = new ResearchFieldNameNormalizer();
+        assertThat(normalizer.normalize(originalName)).isEqualTo("로봇 공학");
+
         Long researchFieldId = jdbc.queryForObject(
-            "SELECT id FROM research_field WHERE name='로봇공학'", Long.class
+            "SELECT id FROM research_field WHERE name=?", Long.class, normalizer.normalize(originalName)
         );
+        Long laboratoryId = jdbc.queryForObject("""
+            SELECT laboratory_id FROM laboratory_research_field
+            WHERE research_field_id=? ORDER BY laboratory_id LIMIT 1
+            """, Long.class, researchFieldId);
         jdbc.update("""
             INSERT INTO laboratory_research_field_candidate (
                 id, laboratory_id, source_field_key, source_description_hash,
@@ -86,35 +149,123 @@ abstract class MixedCollegeResearchFieldMigrationContract {
                 review_revision, extracted_at, version, promoted_research_field_id,
                 promoted_at, promoted_reviewed_at, promoted_review_revision
             ) VALUES (
-                999999, ?, REPEAT('a', 64), REPEAT('b', 64), '로봇   공학 원문',
-                '로봇   공학', 'WHOLE_TEXT', 0, 'test', 'APPROVED', 'reviewer',
+                999999, ?, REPEAT('a', 64), REPEAT('b', 64), ?,
+                ?, 'WHOLE_TEXT', 0, 'test', 'APPROVED', 'reviewer',
                 CURRENT_TIMESTAMP, 1, CURRENT_TIMESTAMP, 4, ?, CURRENT_TIMESTAMP,
                 CURRENT_TIMESTAMP, 1
             )
-            """, laboratoryId, researchFieldId);
+            """, laboratoryId, originalName, originalName, researchFieldId);
 
-        Flyway.configure()
-            .dataSource(dataSource())
-            .locations("classpath:db/migration")
-            .load()
-            .migrate();
+        flyway("48").migrate();
+        Long canonicalFieldId = jdbc.queryForObject(
+            "SELECT id FROM research_field WHERE name='로봇공학'", Long.class
+        );
+        assertThat(jdbc.queryForObject("""
+            SELECT candidate_name FROM laboratory_research_field_candidate WHERE id=999999
+            """, String.class)).isEqualTo(originalName);
+        assertThat(normalizer.equivalent(originalName, "로봇공학")).isFalse();
+        String auditQuery = """
+            SELECT raw_field_text, source_field_key, source_description_hash,
+                   promoted_research_field_id, review_revision, promoted_review_revision,
+                   reviewed_at, promoted_at, promoted_reviewed_at, review_status
+            FROM laboratory_research_field_candidate WHERE id=999999
+            """;
+        Map<String, Object> auditBefore = jdbc.queryForMap(auditQuery);
+        Long versionBefore = jdbc.queryForObject("""
+            SELECT version FROM laboratory_research_field_candidate WHERE id=999999
+            """, Long.class);
 
-        assertCategory("AI 기반 건설로봇 운영", "ROBOT_AUTONOMOUS_CONSTRUCTION_AGRI");
-        assertCategory("군집·편대 비행", "ROBOT_AUTONOMOUS_AERIAL");
-        assertCategory("트랙터·트레일러 자율주행", "ROBOT_AUTONOMOUS_MOBILITY");
-        assertThat(countParentMapping("AI 기반 건설로봇 운영")).isZero();
-        assertThat(countParentMapping("군집·편대 비행")).isZero();
-        assertThat(countParentMapping("트랙터·트레일러 자율주행")).isZero();
+        assertThat(flyway("49").migrate().migrationsExecuted).isEqualTo(1);
 
         Map<String, Object> candidate = jdbc.queryForMap("""
             SELECT candidate_name, raw_field_text, version, promoted_research_field_id
             FROM laboratory_research_field_candidate WHERE id=999999
             """);
         assertThat(candidate.get("candidate_name")).isEqualTo("로봇공학");
-        assertThat(candidate.get("raw_field_text")).isEqualTo("로봇   공학 원문");
-        assertThat(((Number) candidate.get("version")).longValue()).isEqualTo(5L);
+        assertThat(candidate.get("raw_field_text")).isEqualTo(originalName);
+        assertThat(((Number) candidate.get("version")).longValue()).isEqualTo(versionBefore + 1);
         assertThat(((Number) candidate.get("promoted_research_field_id")).longValue())
-            .isEqualTo(researchFieldId);
+            .isEqualTo(canonicalFieldId);
+        assertThat(jdbc.queryForMap(auditQuery)).isEqualTo(auditBefore);
+
+        int fieldCount = count("research_field");
+        int linkCount = count("laboratory_research_field");
+        rePromoteMigratedCandidate(originalName, canonicalFieldId);
+        assertThat(count("research_field")).isEqualTo(fieldCount);
+        assertThat(count("laboratory_research_field")).isEqualTo(linkCount);
+        assertThat(jdbc.queryForObject("""
+            SELECT promoted_review_revision FROM laboratory_research_field_candidate WHERE id=999999
+            """, Long.class)).isEqualTo(2L);
+        assertThat(jdbc.queryForObject("""
+            SELECT promoted_research_field_id FROM laboratory_research_field_candidate WHERE id=999999
+            """, Long.class)).isEqualTo(canonicalFieldId);
+        assertThat(jdbc.queryForObject("""
+            SELECT raw_field_text FROM laboratory_research_field_candidate WHERE id=999999
+            """, String.class)).isEqualTo(originalName);
+    }
+
+    private void rePromoteMigratedCandidate(String originalName, Long canonicalFieldId) {
+        var factory = configuredEntityManagerFactory();
+        try {
+            factory.afterPropertiesSet();
+            var entityManager = factory.getObject().createEntityManager();
+            try {
+                // Use one explicit database transaction for the actual repositories and services.
+                var transaction = entityManager.getTransaction();
+                transaction.begin();
+                try {
+                    var repositories = new JpaRepositoryFactory(entityManager);
+                    var candidates = repositories.getRepository(LaboratoryResearchFieldCandidateRepository.class);
+                    var laboratories = repositories.getRepository(LaboratoryRepository.class);
+                    var normalizer = new ResearchFieldNameNormalizer();
+                    var transactionService = new ResearchFieldCandidatePromotionTransactionService(
+                        candidates,
+                        laboratories,
+                        new ResearchFieldPromotionTargetResolver(
+                            repositories.getRepository(ResearchFieldRepository.class), normalizer
+                        ),
+                        new LaboratoryResearchFieldLinkService(
+                            repositories.getRepository(LaboratoryResearchFieldRepository.class)
+                        ),
+                        normalizer
+                    );
+                    var service = new ResearchFieldCandidatePromotionService(
+                        candidates, laboratories, transactionService
+                    );
+                    var candidate = candidates.findByIdForPromotion(999999L).orElseThrow();
+                    candidate.markStale();
+                    candidate.refreshFromExtraction(
+                        new ResearchFieldCandidateDraft(
+                            candidate.getSourceFieldKey(), originalName, originalName,
+                            ResearchFieldExtractionMethod.WHOLE_TEXT, 0
+                        ),
+                        "c".repeat(64), "test-v2", LocalDateTime.now()
+                    );
+                    candidate.approve("reviewer", "재승인", LocalDateTime.now());
+                    assertThat(candidate.getCandidateName()).isEqualTo("로봇공학");
+                    assertThat(candidate.needsPromotion()).isTrue();
+
+                    var result = service.promote(candidate.getLaboratory().getId());
+
+                    assertThat(result.failures()).isEmpty();
+                    assertThat(result.candidateCount()).isEqualTo(1);
+                    assertThat(result.createdFieldCount()).isZero();
+                    assertThat(result.createdLinkCount()).isZero();
+                    assertThat(result.promotedCount()).isEqualTo(1);
+                    assertThat(result.skippedCount()).isZero();
+                    assertThat(candidate.getPromotedResearchField().getId()).isEqualTo(canonicalFieldId);
+                    assertThat(candidate.getPromotedReviewRevision()).isEqualTo(2L);
+                    assertThat(candidate.needsPromotion()).isFalse();
+                    transaction.commit();
+                } finally {
+                    if (transaction.isActive()) transaction.rollback();
+                }
+            } finally {
+                entityManager.close();
+            }
+        } finally {
+            factory.destroy();
+        }
     }
 
     private int countParentMapping(String fieldName) {
@@ -243,10 +394,15 @@ abstract class MixedCollegeResearchFieldMigrationContract {
     }
 
     private void assertCategory(String field, String code) {
-        assertThat(jdbc.queryForObject("""
+        assertThat(countCategoryMapping(field, code))
+            .as("연구 분야별 카테고리 연결: %s -> %s", field, code).isEqualTo(1);
+    }
+
+    private int countCategoryMapping(String field, String code) {
+        return jdbc.queryForObject("""
             SELECT COUNT(*) FROM research_field f JOIN research_field_category_mapping m ON m.research_field_id=f.id
             JOIN research_field_category c ON c.id=m.category_id WHERE f.name=? AND c.code=?
-            """, Integer.class, field, code)).isEqualTo(1);
+            """, Integer.class, field, code);
     }
 
     private Map<String, Object> snapshotProfilesAndAudit() {
@@ -284,6 +440,16 @@ abstract class MixedCollegeResearchFieldMigrationContract {
 
     private void validateLatestHibernate() {
         Flyway.configure().dataSource(dataSource()).locations("classpath:db/migration").load().migrate();
+        var factory = configuredEntityManagerFactory();
+        try {
+            factory.afterPropertiesSet();
+            assertThat(factory.getObject()).isNotNull();
+        } finally {
+            factory.destroy();
+        }
+    }
+
+    private LocalContainerEntityManagerFactoryBean configuredEntityManagerFactory() {
         var factory = new LocalContainerEntityManagerFactoryBean();
         factory.setDataSource(dataSource());
         factory.setPackagesToScan("com.sebu.backend");
@@ -292,11 +458,6 @@ abstract class MixedCollegeResearchFieldMigrationContract {
             "hibernate.hbm2ddl.auto", "validate",
             "hibernate.physical_naming_strategy", "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy"
         ));
-        try {
-            factory.afterPropertiesSet();
-            assertThat(factory.getObject()).isNotNull();
-        } finally {
-            factory.destroy();
-        }
+        return factory;
     }
 }

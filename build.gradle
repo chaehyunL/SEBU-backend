@@ -60,3 +60,24 @@ tasks.named('test') {
 	maxParallelForks = 1
 	systemProperty 'spring.test.context.cache.maxSize', '3'
 }
+
+tasks.named('bootRun') {
+	doFirst {
+		// application.yml defaults to local. Only supply a development key for
+		// that unconfigured invocation; explicit Spring configuration stays strict.
+		def explicitSpringConfig = args.any { it.startsWith('--spring.') } ||
+			(environment + systemProperties).any { key, value ->
+				value && (key.startsWith('SPRING_') || key.startsWith('spring.'))
+			}
+		def explicitTokenConfig = environment.containsKey('JWT_SECRET_BASE64') ||
+			environment.containsKey('APP_AUTH_TOKEN_JWT_SECRET_BASE64') ||
+			systemProperties.containsKey('app.auth.token.jwt-secret-base64') ||
+			args.any { it.startsWith('--app.auth.token.') }
+		if (!explicitSpringConfig && !explicitTokenConfig) {
+			byte[] localKey = new byte[32]
+			new java.security.SecureRandom().nextBytes(localKey)
+			environment 'JWT_SECRET_BASE64', java.util.Base64.encoder.encodeToString(localKey)
+			logger.lifecycle('bootRun: using a temporary local JWT key; restarting invalidates local tokens.')
+		}
+	}
+}

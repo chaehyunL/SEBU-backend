@@ -54,6 +54,12 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	testLogging {
+		events 'failed'
+		exceptionFormat = 'full'
+		showCauses = true
+		showStackTraces = true
+	}
 	if (project.hasProperty('excludeDocker')) {
 		exclude '**/*MySql*', '**/BookmarkConcurrencyIntegrationTest*', '**/ProdContainerHealthcheckIntegrationTest*'
 	}

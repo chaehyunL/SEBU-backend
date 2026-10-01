@@ -128,7 +128,10 @@ abstract class MixedCollegeResearchFieldMigrationContract {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"로봇  공학", "로봇\t \t공학"})
+    @ValueSource(strings = {
+        "로봇  공학", "로봇\t \t공학", "로봇\n공학", "로봇\r공학",
+        "로봇\f공학", "로봇\u000B공학", " \t로봇 \r\n공학\t "
+    })
     void v49AllowsRePromotionAfterSourceReappears(String originalName) {
         flyway("46").migrate();
         ResearchFieldNameNormalizer normalizer = new ResearchFieldNameNormalizer();
@@ -199,9 +202,11 @@ abstract class MixedCollegeResearchFieldMigrationContract {
         assertThat(jdbc.queryForObject("""
             SELECT promoted_research_field_id FROM laboratory_research_field_candidate WHERE id=999999
             """, Long.class)).isEqualTo(canonicalFieldId);
+        // Re-extraction trims the draft's outer whitespace; the migration itself
+        // must preserve the original raw text, as checked before re-promotion.
         assertThat(jdbc.queryForObject("""
             SELECT raw_field_text FROM laboratory_research_field_candidate WHERE id=999999
-            """, String.class)).isEqualTo(originalName);
+            """, String.class)).isEqualTo(originalName.trim());
     }
 
     private void rePromoteMigratedCandidate(String originalName, Long canonicalFieldId) {

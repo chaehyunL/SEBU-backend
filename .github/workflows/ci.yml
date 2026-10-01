@@ -50,6 +50,17 @@ jobs:
       - name: Build and test
         run: ./gradlew clean test --no-daemon
 
+      - name: Upload test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests/test/
+            build/test-results/test/*.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Build runtime container
         run: docker build --tag sebu-backend:ci .
 

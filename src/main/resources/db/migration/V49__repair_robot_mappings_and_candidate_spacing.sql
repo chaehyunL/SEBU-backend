@@ -54,6 +54,9 @@ DROP TABLE v49_robot_parent_mapping_replacement;
 -- V47 matched candidate names literally. Match reviewed aliases after collapsing
 -- the ASCII whitespace accepted by the promotion normalizer (space, tab, LF, VT,
 -- FF, CR). Build the pattern with character codes to avoid MySQL/H2 escape differences.
+-- MySQL CHAR() and CONCAT() produce a binary pattern; cast it to text because
+-- MySQL 8.0.22+ regular-expression functions reject binary arguments.
+-- The pattern has nine characters; specify the length to avoid H2 CHAR(1).
 CREATE TABLE v49_candidate_name_correction (
     old_name VARCHAR(100) NOT NULL PRIMARY KEY,
     canonical_name VARCHAR(100) NOT NULL
@@ -72,7 +75,7 @@ SET candidate_name = (
         FROM v49_candidate_name_correction correction
         WHERE correction.old_name = TRIM(REGEXP_REPLACE(
             laboratory_research_field_candidate.candidate_name,
-            CONCAT('[ ', CHAR(9), CHAR(10), CHAR(11), CHAR(12), CHAR(13), ']+'), ' '
+            CAST(CONCAT('[ ', CHAR(9), CHAR(10), CHAR(11), CHAR(12), CHAR(13), ']+') AS CHAR(9)), ' '
         ))
     ),
     version = version + 1,
@@ -82,7 +85,7 @@ WHERE EXISTS (
     FROM v49_candidate_name_correction correction
     WHERE correction.old_name = TRIM(REGEXP_REPLACE(
         laboratory_research_field_candidate.candidate_name,
-        CONCAT('[ ', CHAR(9), CHAR(10), CHAR(11), CHAR(12), CHAR(13), ']+'), ' '
+        CAST(CONCAT('[ ', CHAR(9), CHAR(10), CHAR(11), CHAR(12), CHAR(13), ']+') AS CHAR(9)), ' '
     ))
     AND (
         laboratory_research_field_candidate.promoted_research_field_id IS NULL
